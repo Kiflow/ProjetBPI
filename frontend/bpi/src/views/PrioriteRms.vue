@@ -36,6 +36,7 @@
           <th>Compte</th>
           <th>Objet</th>
           <th v-if="viewMode === 'equipe'">Propriétaire</th>
+          <th>Date promis pour</th>
           <th>Priorité RMS</th>
         </tr>
       </thead>
@@ -47,8 +48,21 @@
           <td>{{ row.Objet }}</td>
           <td v-if="viewMode === 'equipe'">{{ row.Proprietaire }}</td>
           <td>
+            <div class="promise-cell">
+              <span v-if="!row.DatePromisPour" class="alert alert-severe">
+                Non renseignée
+              </span>
+              <span
+                v-else-if="isPromiseOverdue(row.DatePromisPour)"
+                class="alert alert-info"
+              >
+                Dépassée — {{ row.DatePromisPour }}
+              </span>
+              <span v-else class="promise-date">{{ row.DatePromisPour }}</span>
+            </div>
+          </td>
+          <td>
             <div class="rms-cell">
-              <span class="rms-label">RMS</span>
               <div class="rms-dates">
                 <span
                   v-for="(date, idx) in row.Dates"
@@ -131,6 +145,29 @@ const dateStatusClass = (value) => {
   return "chip-future";
 };
 
+const parseDate = (value) => {
+  if (!value) return null;
+  const raw = String(value).trim();
+  const direct = new Date(raw);
+  if (!Number.isNaN(direct.getTime())) return direct;
+
+  const match = raw.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
+  if (!match) return null;
+  const day = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const year = Number(match[3].length === 2 ? `20${match[3]}` : match[3]);
+  const fallback = new Date(year, month, day);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+};
+
+const isPromiseOverdue = (value) => {
+  const date = parseDate(value);
+  if (!date) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date < today;
+};
+
 const displayRows = computed(() => {
   if (viewMode.value === "equipe") {
     return rows.value;
@@ -158,6 +195,7 @@ onMounted(() => {
         CodeClient: ticket.CodeClient,
         Compte: ticket.Compte,
         Proprietaire: ticket.Proprietaire,
+        DatePromisPour: ticket.DatePromisPour,
         Dates: dates,
       };
     })
@@ -250,6 +288,40 @@ onMounted(() => {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
+}
+
+.promise-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.promise-date {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.alert {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.alert-severe {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.alert-info {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
 }
 
 .chip-overdue {

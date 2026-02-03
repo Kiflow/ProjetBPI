@@ -157,11 +157,7 @@ const readExcel = (file) => {
           row["priorite rms"] ??
           "",
         DatePromisPour:
-          row["Date promis pour"] ??
-          row["Date Promis Pour"] ??
-          row.DatePromisPour ??
-          row.datePromisPour ??
-          row["date promis pour"] ??
+          row["Date Promis pour"] ??
           "",
         Echeance: row.Echeance ?? row["Échéance"] ?? row.echeance ?? "",
         IdExterne:
