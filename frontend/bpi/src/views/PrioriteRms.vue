@@ -56,9 +56,11 @@
                 v-else-if="isPromiseOverdue(row.DatePromisPour)"
                 class="alert alert-info"
               >
-                Dépassée — {{ row.DatePromisPour }}
+                Dépassée — {{ formatPromiseDate(row.DatePromisPour) }}
               </span>
-              <span v-else class="promise-date">{{ row.DatePromisPour }}</span>
+              <span v-else class="promise-date">
+                {{ formatPromiseDate(row.DatePromisPour) }}
+              </span>
             </div>
           </td>
           <td>
@@ -148,6 +150,14 @@ const dateStatusClass = (value) => {
 const parseDate = (value) => {
   if (!value) return null;
   const raw = String(value).trim();
+
+  const numeric = Number(raw.replace(",", "."));
+  if (!Number.isNaN(numeric) && numeric > 20000) {
+    const utc = Date.UTC(1899, 11, 30) + numeric * 86400000;
+    const excelDate = new Date(utc);
+    if (!Number.isNaN(excelDate.getTime())) return excelDate;
+  }
+
   const direct = new Date(raw);
   if (!Number.isNaN(direct.getTime())) return direct;
 
@@ -158,6 +168,15 @@ const parseDate = (value) => {
   const year = Number(match[3].length === 2 ? `20${match[3]}` : match[3]);
   const fallback = new Date(year, month, day);
   return Number.isNaN(fallback.getTime()) ? null : fallback;
+};
+
+const formatPromiseDate = (value) => {
+  const date = parseDate(value);
+  if (!date) return String(value);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear());
+  return `${day}/${month}/${year}`;
 };
 
 const isPromiseOverdue = (value) => {
