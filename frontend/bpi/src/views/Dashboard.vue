@@ -13,7 +13,7 @@
       @dragenter.prevent
       @drop.prevent="handleDrop"
     >
-      <p>Déposez votre fichier Excel ici</p>
+      <p>Déposez votre fichier CSV ici</p>
       <p v-if="fileName" class="file-name">Fichier sélectionné: {{ fileName }}</p>
       <button type="button" class="choose-button" @click="openFilePicker">
         Choisir un fichier
@@ -29,7 +29,7 @@
       <input
         ref="fileInput"
         type="file"
-        accept=".xlsx,.xls"
+        accept=".csv"
         @change="handleFile"
       />
     </div>
@@ -96,22 +96,18 @@ const readSelectedFile = () => {
 
 const readExcel = (file) => {
   errorMessage.value = "";
-  const isExcel =
-    file.type ===
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-    file.type === "application/vnd.ms-excel" ||
-    file.name.toLowerCase().endsWith(".xlsx") ||
-    file.name.toLowerCase().endsWith(".xls");
+  const isCsv =
+    file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
 
-  if (!isExcel) {
-    errorMessage.value = "Veuillez déposer un fichier Excel (.xlsx ou .xls).";
+  if (!isCsv) {
+    errorMessage.value = "Veuillez déposer un fichier CSV (.csv).";
     return;
   }
 
   const reader = new FileReader();
   reader.onload = (e) => {
-    const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data, { type: "array" });
+    const data = e.target.result;
+    const workbook = XLSX.read(data, { type: "string" });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
@@ -197,7 +193,7 @@ const readExcel = (file) => {
     errorMessage.value =
       "Impossible de lire le fichier. Vérifiez qu'il n'est pas corrompu.";
   };
-  reader.readAsArrayBuffer(file);
+  reader.readAsText(file);
 };
 </script>
 
