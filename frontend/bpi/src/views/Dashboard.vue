@@ -1,6 +1,8 @@
 ﻿<template>
   <div class="dashboard">
-    <p>Glisser-déposer un fichier Excel pour ajouter des tickets :</p>
+    <p v-if="!fileLoaded">
+      Glisser-déposer un fichier CSV pour ajouter des tickets :
+    </p>
     <p class="hint">
       Colonnes attendues (ligne d'en-tête): Numero ticket, Objet, Criticité,
       Priorité RMS, Date promis pour, Échéance, ID externe, Code Client, Compte,
@@ -8,6 +10,7 @@
     </p>
 
     <div
+      v-if="!fileLoaded"
       class="drop-zone"
       @dragover.prevent
       @dragenter.prevent
@@ -34,28 +37,27 @@
       />
     </div>
 
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-
-    <div v-if="tickets.length" class="ticket-list">
-      <div
-        v-for="ticket in tickets"
-        :key="ticket.NumeroTicket"
-        class="ticket-card"
-      >
-        <h3>{{ ticket.Objet }}</h3>
-        <p>Numéro ticket: {{ ticket.NumeroTicket }}</p>
-        <p>Criticité: {{ ticket.Criticite }}</p>
-        <p>Priorité RMS: {{ ticket.PrioriteRms }}</p>
-        <p>Date promis pour: {{ ticket.DatePromisPour }}</p>
-        <p>Échéance: {{ ticket.Echeance }}</p>
-        <p>ID externe: {{ ticket.IdExterne }}</p>
-      </div>
+    <div v-else class="loaded">
+      <p class="success">
+        Fichier chargé avec succès. Nombre de tickets: {{ ticketsCount }}
+      </p>
+      <button type="button" class="choose-button" @click="loadNewFile">
+        Charger un nouveau fichier
+      </button>
+      <input
+        ref="fileInput"
+        type="file"
+        accept=".csv"
+        @change="handleFile"
+      />
     </div>
+
+    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
   </div>
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import * as XLSX from "xlsx";
 
 const tickets = ref([]);
@@ -63,6 +65,9 @@ const fileName = ref("");
 const errorMessage = ref("");
 const fileInput = ref(null);
 const selectedFile = ref(null);
+const fileLoaded = ref(false);
+
+const ticketsCount = computed(() => tickets.value.length);
 
 const handleFile = (event) => {
   const file = event.target.files[0];
@@ -81,6 +86,7 @@ const handleDrop = (event) => {
   selectedFile.value = file;
   tickets.value = [];
   errorMessage.value = "";
+  fileLoaded.value = false;
 };
 
 const openFilePicker = () => {
@@ -92,6 +98,18 @@ const openFilePicker = () => {
 const readSelectedFile = () => {
   if (!selectedFile.value) return;
   readExcel(selectedFile.value);
+};
+
+const loadNewFile = () => {
+  tickets.value = [];
+  fileName.value = "";
+  errorMessage.value = "";
+  selectedFile.value = null;
+  fileLoaded.value = false;
+  if (fileInput.value) {
+    fileInput.value.value = "";
+    fileInput.value.click();
+  }
 };
 
 const readExcel = (file) => {
@@ -188,6 +206,7 @@ const readExcel = (file) => {
       };
     });
     localStorage.setItem("tickets", JSON.stringify(tickets.value));
+    fileLoaded.value = true;
   };
   reader.onerror = () => {
     errorMessage.value =
@@ -261,6 +280,19 @@ const readExcel = (file) => {
 .read-button:disabled {
   background: #8fb39d;
   cursor: not-allowed;
+}
+
+.loaded {
+  margin-top: 12px;
+}
+
+.loaded input {
+  display: none;
+}
+
+.success {
+  color: #1f6f43;
+  margin-bottom: 12px;
 }
 
 .hint {
