@@ -62,6 +62,7 @@ const login = async () => {
     });
 
     localStorage.setItem("token", res.data.token);
+    window.dispatchEvent(new Event("auth-changed"));
     router.push("/");
   } catch (e) {
     alert("Identifiants incorrects");

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="sidebar">
     <!-- Logo -->
     <div class="logo">
@@ -22,16 +22,34 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M9 12h6m-6 4h6m2 8H7a2 2 0 01-2-2V6a2 2 0 012-2h4l2-2 2 2h4a2 2 0 012 2v16a2 2 0 01-2 2z"/>
         </svg>
-        <span>Tickets</span>
+        <span>Backlog</span>
       </router-link>
 
-      <router-link to="/upload" class="nav-item">
-        <!-- Document SVG -->
+      <router-link to="/centralisation-demande" class="nav-item">
+        <!-- Inbox Arrow Down SVG -->
         <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M7 8h10M7 12h6m-6 4h6M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            d="M2.25 12l1.5-1.5a2.25 2.25 0 011.59-.66h13.32a2.25 2.25 0 011.59.66L21.75 12M12 12v6m0 0l-3-3m3 3l3-3M3.75 20.25h16.5a2.25 2.25 0 002.25-2.25v-5.25a2.25 2.25 0 00-2.25-2.25H3.75A2.25 2.25 0 001.5 12.75v5.25a2.25 2.25 0 002.25 2.25z"/>
         </svg>
-        <span>Upload Excel</span>
+        <span>Centralisation demande</span>
+      </router-link>
+
+      <router-link to="/priorite-rms" class="nav-item">
+        <!-- Flag SVG -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M5 5v16m0-16h10l-1.5 3H20l-2 4h-7l-1.5 3H5"/>
+        </svg>
+        <span>Priorité RMS</span>
+      </router-link>
+
+      <router-link to="/habilitation" class="nav-item">
+        <!-- Shield Check SVG -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 3l7.5 3v6c0 5.25-3.75 8.25-7.5 9-3.75-.75-7.5-3.75-7.5-9V6L12 3zm-3 9l2.25 2.25L15 10.5"/>
+        </svg>
+        <span>Habilitation</span>
       </router-link>
     </nav>
   </div>

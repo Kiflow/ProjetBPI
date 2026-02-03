@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div id="app">
     <div v-if="isAuthenticated" class="app-layout">
       <Sidebar />
@@ -15,20 +15,36 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
 import Sidebar from "./components/Sidebar.vue";
 import Topbar from "./components/Topbar.vue";
 
 // Authentification réactive
 const isAuthenticated = ref(!!localStorage.getItem("token"));
+const router = useRouter();
+
+const syncAuth = () => {
+  isAuthenticated.value = !!localStorage.getItem("token");
+};
+
+onMounted(() => {
+  window.addEventListener("auth-changed", syncAuth);
+  window.addEventListener("storage", syncAuth);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("auth-changed", syncAuth);
+  window.removeEventListener("storage", syncAuth);
+});
 
 // Fonction de logout
 const logout = () => {
   localStorage.removeItem("token");
-  isAuthenticated.value = false; // met à jour immédiatement
+  syncAuth(); // met à jour immédiatement
+  router.push("/login");
 };
 </script>
-
 
 <style>
 .app-layout {
@@ -62,5 +78,4 @@ html, body, #app {
   width: 100%;
   font-family: Inter, sans-serif;
 }
-
 </style>

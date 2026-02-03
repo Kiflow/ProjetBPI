@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="topbar">
     <div class="title">
       {{ pageTitle }}
@@ -26,10 +26,20 @@ const user = {
 // Titre dynamique selon la route
 const pageTitle = computed(() => {
   switch (route.path) {
-    case "/": return "Dashboard";
-    case "/tickets": return "Tickets";
-    case "/upload": return "Upload Excel";
-    default: return "Page";
+    case "/":
+      return "Dashboard";
+    case "/tickets":
+      return "Backlog";
+    case "/centralisation-demande":
+      return "Centralisation demande";
+    case "/priorite-rms":
+      return "Priorité RMS";
+    case "/habilitation":
+      return "Habilitation";
+    case "/upload":
+      return "Upload Excel";
+    default:
+      return "Page";
   }
 });
 
@@ -42,21 +52,22 @@ const logout = () => {
 
 <style scoped>
 .topbar {
-  height: 60px;
-  /* Dégradé horizontal de gauche à droite */
-  background: linear-gradient(to right, #122b45, #122b45);
-  color: white;
+  height: 68px;
+  background: linear-gradient(90deg, #0f2742 0%, #143a63 55%, #0f2742 100%);
+  color: #f8fafc;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 24px;
   font-family: Inter, sans-serif;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
 }
 
 .user-info {
@@ -66,9 +77,9 @@ const logout = () => {
 }
 
 .user-info button {
-  padding: 6px 12px;
-  background-color: white;
-  color: #0052cc;
+  padding: 8px 14px;
+  background-color: rgba(255, 255, 255, 0.92);
+  color: #0f2742;
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -77,7 +88,6 @@ const logout = () => {
 }
 
 .user-info button:hover {
-  background-color: #f0f0f0;
+  background-color: #ffffff;
 }
 </style>
-
