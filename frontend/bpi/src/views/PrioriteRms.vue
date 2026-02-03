@@ -46,7 +46,21 @@
           <td>{{ row.Compte }}</td>
           <td>{{ row.Objet }}</td>
           <td v-if="viewMode === 'equipe'">{{ row.Proprietaire }}</td>
-          <td>priorité rms du {{ row.Dates }}</td>
+          <td>
+            <div class="rms-cell">
+              <span class="rms-label">RMS</span>
+              <div class="rms-dates">
+                <span
+                  v-for="(date, idx) in row.Dates"
+                  :key="`${row.NumeroTicket}-${idx}`"
+                  class="rms-chip"
+                  :class="dateStatusClass(date)"
+                >
+                  {{ date }}
+                </span>
+              </div>
+            </div>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -94,6 +108,29 @@ const isEquipe = (ticket) => {
   return owner.includes("equipe") || owner.includes("équipe") || owner.includes("pole") || owner.includes("pôle");
 };
 
+const parseMonthYear = (value) => {
+  if (!value) return null;
+  const clean = String(value).replace(/[^\d]/g, "");
+  if (clean.length !== 6) return null;
+  const month = Number(clean.slice(0, 2));
+  const year = Number(clean.slice(2));
+  if (!month || month < 1 || month > 12) return null;
+  return { month, year };
+};
+
+const dateStatusClass = (value) => {
+  const parsed = parseMonthYear(value);
+  if (!parsed) return "chip-unknown";
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+
+  if (parsed.year < currentYear) return "chip-overdue";
+  if (parsed.year === currentYear && parsed.month < currentMonth) return "chip-overdue";
+  if (parsed.year === currentYear && parsed.month === currentMonth) return "chip-current";
+  return "chip-future";
+};
+
 const displayRows = computed(() => {
   if (viewMode.value === "equipe") {
     return rows.value;
@@ -121,7 +158,7 @@ onMounted(() => {
         CodeClient: ticket.CodeClient,
         Compte: ticket.Compte,
         Proprietaire: ticket.Proprietaire,
-        Dates: dates.join(" | "),
+        Dates: dates,
       };
     })
     .filter(Boolean);
@@ -188,5 +225,54 @@ onMounted(() => {
 .col-ticket {
   width: 1%;
   white-space: nowrap;
+}
+
+.rms-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rms-label {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.rms-dates {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rms-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chip-overdue {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.chip-current {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.chip-future {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.chip-unknown {
+  background: #e2e8f0;
+  color: #334155;
+  border: 1px solid #cbd5e1;
 }
 </style>
