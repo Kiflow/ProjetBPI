@@ -56,24 +56,22 @@
                 v-else-if="isPromiseOverdue(row.DatePromisPour)"
                 class="alert alert-info"
               >
-                Dépassée — {{ formatPromiseDate(row.DatePromisPour) }}
+                Dépassée — {{ row.DatePromisPour }}
               </span>
-              <span v-else class="promise-date">
-                {{ formatPromiseDate(row.DatePromisPour) }}
-              </span>
+              <span v-else class="promise-date">{{ row.DatePromisPour }}</span>
             </div>
           </td>
           <td>
             <div class="rms-cell">
-              <div class="rms-dates">
-                <span
+              <div class="rms-timeline">
+                <div
                   v-for="(date, idx) in row.Dates"
                   :key="`${row.NumeroTicket}-${idx}`"
-                  class="rms-chip"
+                  class="rms-node"
                   :class="dateStatusClass(date)"
                 >
-                  {{ date }}
-                </span>
+                  <span class="rms-date">{{ date }}</span>
+                </div>
               </div>
             </div>
           </td>
@@ -150,14 +148,6 @@ const dateStatusClass = (value) => {
 const parseDate = (value) => {
   if (!value) return null;
   const raw = String(value).trim();
-
-  const numeric = Number(raw.replace(",", "."));
-  if (!Number.isNaN(numeric) && numeric > 20000) {
-    const utc = Date.UTC(1899, 11, 30) + numeric * 86400000;
-    const excelDate = new Date(utc);
-    if (!Number.isNaN(excelDate.getTime())) return excelDate;
-  }
-
   const direct = new Date(raw);
   if (!Number.isNaN(direct.getTime())) return direct;
 
@@ -168,15 +158,6 @@ const parseDate = (value) => {
   const year = Number(match[3].length === 2 ? `20${match[3]}` : match[3]);
   const fallback = new Date(year, month, day);
   return Number.isNaN(fallback.getTime()) ? null : fallback;
-};
-
-const formatPromiseDate = (value) => {
-  const date = parseDate(value);
-  if (!date) return String(value);
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = String(date.getFullYear());
-  return `${day}/${month}/${year}`;
 };
 
 const isPromiseOverdue = (value) => {
@@ -291,79 +272,67 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
-.rms-label {
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.rms-dates {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.rms-chip {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.promise-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.promise-date {
-  color: #1f2937;
-  font-weight: 600;
-}
-
-.alert {
+.rms-timeline {
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid transparent;
+  gap: 10px;
+  flex-wrap: wrap;
+  position: relative;
 }
 
-.alert-severe {
-  background: #fee2e2;
-  color: #b91c1c;
-  border-color: #fecaca;
-}
-
-.alert-info {
-  background: #dbeafe;
-  color: #1d4ed8;
-  border-color: #bfdbfe;
-}
-
-.chip-overdue {
-  background: #fee2e2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
-}
-
-.chip-current {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fde68a;
-}
-
-.chip-future {
-  background: #dcfce7;
-  color: #166534;
-  border: 1px solid #86efac;
-}
-
-.chip-unknown {
+.rms-timeline::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
   background: #e2e8f0;
+  transform: translateY(-50%);
+}
+
+.rms-node {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0f172a;
+  position: relative;
+  background: #ffffff;
+  padding: 0 2px;
+}
+
+.rms-date {
+  background: #f1f5f9;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  letter-spacing: 0.2px;
+  border-left-width: 6px;
+}
+
+.chip-overdue .rms-date {
+  border-color: #fecaca;
+  color: #b91c1c;
+  border-left-color: #ef4444;
+}
+
+.chip-current .rms-date {
+  border-color: #fde68a;
+  color: #92400e;
+  border-left-color: #f59e0b;
+}
+
+.chip-future .rms-date {
+  border-color: #86efac;
+  color: #166534;
+  border-left-color: #22c55e;
+}
+
+.chip-unknown .rms-date {
+  border-color: #cbd5e1;
   color: #334155;
-  border: 1px solid #cbd5e1;
+  border-left-color: #94a3b8;
 }
 </style>
+
