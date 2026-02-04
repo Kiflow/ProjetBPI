@@ -57,23 +57,23 @@
 
 <style scoped>
 .sidebar {
-  width: 200px;
+  width: 220px;
   height: 100vh;
-  background-color: #EDEFF1; /* fond uniforme */
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f6 100%);
   display: flex;
   flex-direction: column;
-  padding-left: 10px;
-  padding-right: 10px;
-  padding-top: 20px;
+  padding: 20px 12px;
+  border-right: 1px solid #dbe2ea;
+  box-shadow: 8px 0 20px rgba(15, 23, 42, 0.06);
 }
 
 .logo {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 24px;
 }
 
 .logo img {
-  width: 120px;
+  width: 110px;
   object-fit: contain;
 }
 
@@ -82,22 +82,25 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  color: #6b6b6b; /* texte gris bleu */
+  padding: 10px 14px;
+  margin-bottom: 6px;
+  color: #334155;
   text-decoration: none;
-  border-radius: 4px;
-  font-weight: bold; /* texte en gras */
-  transition: background 0.2s, color 0.2s;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .nav-item:hover {
-  background-color: rgba(0,0,0,0.05); /* léger hover */
-  color: #6b6b6b;
+  background-color: #e8edf3;
+  color: #0f2742;
+  transform: translateX(2px);
 }
 
 .router-link-active {
-  background-color: rgba(0,0,0,0.1);
+  background: #0f2742;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
 }
 
 /* Icônes couleur texte */
@@ -105,6 +108,6 @@
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  stroke: #6b6b6b;
+  stroke: currentColor;
 }
 </style>

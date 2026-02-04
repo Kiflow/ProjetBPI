@@ -51,8 +51,8 @@
           </td>
           <td>{{ ticket.Objet }}</td>
           <td>{{ ticket.Criticite }}</td>
-          <td>{{ ticket.DatePromisPour }}</td>
-          <td>{{ ticket.Echeance }}</td>
+          <td>{{ formatDate(ticket.DatePromisPour) }}</td>
+          <td>{{ formatDate(ticket.Echeance) }}</td>
         </tr>
       </tbody>
     </table>
@@ -78,16 +78,41 @@ onMounted(() => {
 const parseDate = (value) => {
   if (!value) return null;
   const raw = String(value).trim();
-  const parsed = new Date(raw);
-  if (!Number.isNaN(parsed.getTime())) return parsed;
+  const cleaned = raw.replace(/[^0-9,.-]/g, "");
+  const numeric = Number(cleaned.replace(",", "."));
+  if (!Number.isNaN(numeric) && numeric >= 1) {
+    const utc = Date.UTC(1899, 11, 30) + numeric * 86400000;
+    const excelDate = new Date(utc);
+    if (!Number.isNaN(excelDate.getTime())) return excelDate;
+  }
 
   const match = raw.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
-  if (!match) return null;
-  const day = Number(match[1]);
-  const month = Number(match[2]) - 1;
-  const year = Number(match[3].length === 2 ? `20${match[3]}` : match[3]);
-  const fallback = new Date(year, month, day);
-  return Number.isNaN(fallback.getTime()) ? null : fallback;
+  if (match) {
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3].length === 2 ? `20${match[3]}` : match[3]);
+    const parsed = new Date(year, month - 1, day);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const isoMatch = raw.match(/(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})/);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]);
+    const day = Number(isoMatch[3]);
+    const parsed = new Date(year, month - 1, day);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+};
+
+const formatDate = (value) => {
+  const date = parseDate(value);
+  if (!date) return value ?? "";
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear());
+  return `${day}/${month}/${year}`;
 };
 
 const parseMaybeNumber = (value) => {

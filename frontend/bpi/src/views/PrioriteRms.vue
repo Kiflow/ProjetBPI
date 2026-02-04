@@ -32,35 +32,39 @@
       <thead>
         <tr>
           <th class="col-ticket">Numéro ticket</th>
-          <th>Code Client</th>
-          <th>Compte</th>
+          <th class="col-code-client">Code Client</th>
+          <th class="col-compte">Compte</th>
           <th>Objet</th>
           <th v-if="viewMode === 'equipe'">Propriétaire</th>
-          <th>Date promis pour</th>
+          <th class="col-date-promis">Date promis pour</th>
           <th>Priorité RMS</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="(row, index) in displayRows" :key="row.NumeroTicket || index">
           <td class="col-ticket">{{ row.NumeroTicket }}</td>
-          <td>{{ row.CodeClient }}</td>
-          <td>{{ row.Compte }}</td>
-          <td>{{ row.Objet }}</td>
-          <td v-if="viewMode === 'equipe'">{{ row.Proprietaire }}</td>
-          <td>
+          <td class="col-code-client">{{ row.CodeClient }}</td>
+          <td class="col-compte" :title="row.Compte">{{ row.Compte }}</td>
+          <td class="col-objet" :title="row.Objet">
+            {{ truncateText(row.Objet, 35) }}
+          </td>
+          <td v-if="viewMode === 'equipe'" class="col-proprietaire" :title="row.Proprietaire">
+            {{ row.Proprietaire }}
+          </td>
+          <td class="col-date-promis">
             <div class="promise-cell">
               <span v-if="!row.DatePromisPour" class="alert alert-severe">
                 Non renseignée
               </span>
-              <span
-                v-else-if="isPromiseOverdue(row.DatePromisPour)"
-                class="alert alert-info"
-              >
-                Dépassée — {{ formatPromiseDate(row.DatePromisPour) }}
-              </span>
-              <span v-else class="promise-date">
-                {{ formatPromiseDate(row.DatePromisPour) }}
-              </span>
+              <template v-else>
+                <span class="promise-date">
+                  {{ formatPromiseDate(row.DatePromisPour) }}
+                </span>
+                <span class="promise-divider" aria-hidden="true"></span>
+                <span class="promise-status" :class="promiseStatusClass(row.DatePromisPour)">
+                  {{ promiseStatusText(row.DatePromisPour) }}
+                </span>
+              </template>
             </div>
           </td>
           <td>
@@ -150,22 +154,40 @@ const dateStatusClass = (value) => {
 const parseDate = (value) => {
   if (!value) return null;
   const raw = String(value).trim();
-  const numeric = Number(raw.replace(",", "."));
-  if (!Number.isNaN(numeric) && numeric > 20000) {
+  const cleaned = raw.replace(/[^0-9,.-]/g, "");
+  const numeric = Number(cleaned.replace(",", "."));
+  if (!Number.isNaN(numeric) && numeric >= 1) {
     const utc = Date.UTC(1899, 11, 30) + numeric * 86400000;
     const excelDate = new Date(utc);
     if (!Number.isNaN(excelDate.getTime())) return excelDate;
   }
-  const direct = new Date(raw);
-  if (!Number.isNaN(direct.getTime())) return direct;
 
+  // Prefer explicit d/m/y parsing to avoid US month/day swaps.
   const match = raw.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
-  if (!match) return null;
-  const day = Number(match[1]);
-  const month = Number(match[2]) - 1;
-  const year = Number(match[3].length === 2 ? `20${match[3]}` : match[3]);
-  const fallback = new Date(year, month, day);
-  return Number.isNaN(fallback.getTime()) ? null : fallback;
+  if (match) {
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3].length === 2 ? `20${match[3]}` : match[3]);
+    const parsed = new Date(year, month - 1, day);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  // Fallback for ISO-like dates only (e.g. 2025-02-01).
+  const isoMatch = raw.match(/(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})/);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]);
+    const day = Number(isoMatch[3]);
+    const parsed = new Date(year, month - 1, day);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+};
+
+const truncateText = (value, maxLength = 20) => {
+  if (!value) return "";
+  const text = String(value);
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 };
 
 const formatPromiseDate = (value) => {
@@ -175,6 +197,34 @@ const formatPromiseDate = (value) => {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = String(date.getFullYear());
   return `${day}/${month}/${year}`;
+};
+
+const daysFromToday = (value) => {
+  const date = parseDate(value);
+  if (!date) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  const diffMs = target - today;
+  return Math.round(diffMs / 86400000);
+};
+
+const promiseStatusText = (value) => {
+  const delta = daysFromToday(value);
+  if (delta === null) return "Date invalide";
+  if (delta < 0) {
+    const days = Math.abs(delta);
+    return `Dépassée depuis ${days} jour${days > 1 ? "s" : ""}`;
+  }
+  if (delta === 0) return "Échéance aujourd'hui";
+  return `Il reste ${delta} jour${delta > 1 ? "s" : ""}`;
+};
+
+const promiseStatusClass = (value) => {
+  const delta = daysFromToday(value);
+  if (delta === null) return "promise-unknown";
+  return delta < 0 ? "promise-overdue" : "promise-ok";
 };
 
 const isPromiseOverdue = (value) => {
@@ -264,17 +314,53 @@ onMounted(() => {
   margin-top: 16px;
   border-collapse: collapse;
   background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
 }
 
 .tickets-table th,
 .tickets-table td {
-  border: 1px solid #e2e8f0;
-  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  padding: 8px 12px;
   text-align: left;
+  vertical-align: middle;
+}
+
+.tickets-table th:last-child,
+.tickets-table td:last-child {
+  border-right: none;
 }
 
 .tickets-table thead {
-  background: #f5f7fa;
+  background: linear-gradient(90deg, #eef2ff 0%, #f8fafc 100%);
+}
+
+.tickets-table th {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  padding: 12px 12px;
+}
+
+.tickets-table tbody tr {
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.tickets-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.tickets-table tbody tr:hover {
+  background: #eef2ff;
+}
+
+.tickets-table tbody td {
+  color: #0f172a;
+  line-height: 1.2;
 }
 
 .col-ticket {
@@ -282,16 +368,82 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+.col-code-client {
+  width: 120px;
+  white-space: nowrap;
+}
+
+.col-objet {
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-compte {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-proprietaire {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .promise-cell {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.col-date-promis {
+  width: 1%;
+  white-space: nowrap;
+}
+.promise-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.promise-status.promise-overdue {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.promise-status.promise-ok {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.promise-status.promise-unknown {
+  background: #e2e8f0;
+  color: #334155;
+  border-color: #cbd5e1;
 }
 
 .promise-date {
   color: #1f2937;
-  font-weight: 600;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.promise-divider {
+  width: 2px;
+  height: 22px;
+  background: #e2e8f0;
+  flex-shrink: 0;
 }
 
 .alert {
@@ -345,21 +497,21 @@ onMounted(() => {
 .rms-node {
   display: inline-flex;
   align-items: center;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   color: #0f172a;
   position: relative;
   background: #ffffff;
-  padding: 0 2px;
+  padding: 0 1px;
 }
 
 .rms-date {
   background: #f1f5f9;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
-  letter-spacing: 0.2px;
-  border-left-width: 6px;
+  letter-spacing: 0.3px;
+  border-left-width: 7px;
 }
 
 .chip-overdue .rms-date {
@@ -369,9 +521,9 @@ onMounted(() => {
 }
 
 .chip-current .rms-date {
-  border-color: #fde68a;
-  color: #92400e;
-  border-left-color: #f59e0b;
+  border-color: #86efac;
+  color: #166534;
+  border-left-color: #22c55e;
 }
 
 .chip-future .rms-date {
