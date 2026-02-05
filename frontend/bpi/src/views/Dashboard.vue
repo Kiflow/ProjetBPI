@@ -4,9 +4,9 @@
       Glisser-déposer un fichier CSV pour ajouter des tickets :
     </p>
     <p class="hint">
-      Colonnes attendues (ligne d'en-tête): Numero ticket, Objet, Criticité,
+      Colonnes attendues (ligne d'en-tête): Numero ticket, Objet, Priorité,
       Priorité RMS, Date promis pour, Échéance, ID externe, Code Client, Compte,
-      Proprietaire
+      Proprietaire, Statut, Categorie, Classification BU
     </p>
 
     <div
@@ -130,10 +130,20 @@ const readExcel = (file) => {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
     tickets.value = rows.map((row) => {
-      const criticite =
-        row.Criticite ?? row["Criticité"] ?? row.criticite ?? "";
       const priorite =
-        row.Priorite ?? row["Priorité"] ?? row.priorite ?? criticite ?? "";
+        row.Priorite ??
+        row["Priorité"] ??
+        row.priorite ??
+        row["priorité"] ??
+        "";
+      const statut =
+        row.Statut ??
+        row["Statut"] ??
+        row.Status ??
+        row["Status"] ??
+        row["État"] ??
+        row["Etat"] ??
+        "";
       return {
         NumeroTicket:
           row["Numero ticket"] ??
@@ -146,16 +156,7 @@ const readExcel = (file) => {
           row["numéro Ticket"] ??
           "",
         Objet: row.Objet ?? row.objet ?? "",
-        Criticite: criticite,
         Priorite: priorite,
-        PrioriteRms:
-          row["Priorité RMS"] ??
-          row["Priorite RMS"] ??
-          row.PrioriteRms ??
-          row.prioriteRms ??
-          row["priorité rms"] ??
-          row["priorite rms"] ??
-          "",
         DatePromisPour:
           row["Date Promis pour"] ??
           "",
@@ -193,12 +194,28 @@ const readExcel = (file) => {
           row.Client ??
           row.client ??
           "",
+        Categorie:
+          row.Categorie ??
+          row["Catégorie"] ??
+          row.categorie ??
+          row["catégorie"] ??
+          row["Categorie"] ??
+          row["categorie"] ??
+          "",
+        ClassificationBU:
+          row["Classification BU"] ??
+          row["classification BU"] ??
+          row["classification bu"] ??
+          row.ClassificationBU ??
+          row.classificationBU ??
+          "",
         Proprietaire:
           row.Proprietaire ??
           row["Propriétaire"] ??
           row.proprietaire ??
           row["propriétaire"] ??
           "",
+        Statut: statut,
       };
     });
     localStorage.setItem("tickets", JSON.stringify(tickets.value));

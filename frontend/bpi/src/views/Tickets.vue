@@ -11,7 +11,7 @@
     <div v-else class="filters">
       <label class="filter-label" for="sortKey">Trier par</label>
       <select id="sortKey" v-model="sortKey" class="filter-select">
-        <option value="Criticite">Criticité</option>
+        <option value="Priorite">Priorité</option>
         <option value="DatePromisPour">Date promis pour</option>
         <option value="Echeance">Échéance</option>
       </select>
@@ -28,8 +28,10 @@
       <thead>
         <tr>
           <th>Numéro ticket</th>
+          <th class="col-pac">PAC</th>
+          <th class="col-client">Client</th>
           <th>Objet</th>
-          <th>Criticité</th>
+          <th>Priorité</th>
           <th>Date promis pour</th>
           <th>Échéance</th>
         </tr>
@@ -49,8 +51,10 @@
               <span>{{ ticket.NumeroTicket }}</span>
             </div>
           </td>
+          <td class="col-pac">{{ ticket.CodeClient }}</td>
+          <td class="col-client" :title="ticket.Compte">{{ ticket.Compte }}</td>
           <td>{{ ticket.Objet }}</td>
-          <td>{{ ticket.Criticite }}</td>
+          <td>{{ ticket.Priorite }}</td>
           <td>{{ formatDate(ticket.DatePromisPour) }}</td>
           <td>{{ formatDate(ticket.Echeance) }}</td>
         </tr>
@@ -63,7 +67,7 @@
 import { ref, computed, onMounted } from "vue";
 
 const tickets = ref([]);
-const sortKey = ref("Criticite");
+const sortKey = ref("Priorite");
 
 onMounted(() => {
   const stored = localStorage.getItem("tickets");
@@ -227,16 +231,64 @@ const sortedTickets = computed(() => {
   margin-top: 16px;
   border-collapse: collapse;
   background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
 }
 
 .tickets-table th,
 .tickets-table td {
-  border: 1px solid #e2e8f0;
-  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  padding: 8px 12px;
   text-align: left;
+  vertical-align: middle;
+}
+
+.tickets-table th:last-child,
+.tickets-table td:last-child {
+  border-right: none;
 }
 
 .tickets-table thead {
-  background: #f5f7fa;
+  background: linear-gradient(90deg, #eef2ff 0%, #f8fafc 100%);
+}
+
+.tickets-table th {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  padding: 12px 12px;
+}
+
+.tickets-table tbody tr {
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.tickets-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.tickets-table tbody tr:hover {
+  background: #eef2ff;
+}
+
+.tickets-table tbody td {
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.col-pac {
+  width: 120px;
+  white-space: nowrap;
+}
+
+.col-client {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

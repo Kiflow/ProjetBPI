@@ -4,23 +4,56 @@
       Recherche du mot RMS dans la colonne ID externe et extraction des dates.
     </p>
 
-    <div class="toggle">
-      <button
-        type="button"
-        class="toggle-btn"
-        :class="{ active: viewMode === 'equipe' }"
-        @click="viewMode = 'equipe'"
-      >
-        Équipe
-      </button>
-      <button
-        type="button"
-        class="toggle-btn"
-        :class="{ active: viewMode === 'individuel' }"
-        @click="viewMode = 'individuel'"
-      >
-        Individuel
-      </button>
+    <div class="filters-row">
+      <div class="filter-block">
+        <label class="filter-label" for="handlerFilter">À traiter par</label>
+        <select
+          id="handlerFilter"
+          v-model="handlerFilter"
+          class="filter-select"
+        >
+          <option value="all">Tous</option>
+          <option value="client">Client</option>
+          <option value="adp">ADP</option>
+        </select>
+      </div>
+
+      <div class="filter-block">
+        <label class="filter-label" for="buFilter">Classification BU</label>
+        <select
+          id="buFilter"
+          v-model="buFilter"
+          class="filter-select"
+          multiple
+        >
+          <option
+            v-for="option in buOptions"
+            :key="option"
+            :value="option"
+          >
+            {{ option }}
+          </option>
+        </select>
+      </div>
+
+      <div class="toggle">
+        <button
+          type="button"
+          class="toggle-btn"
+          :class="{ active: viewMode === 'equipe' }"
+          @click="viewMode = 'equipe'"
+        >
+          Équipe
+        </button>
+        <button
+          type="button"
+          class="toggle-btn"
+          :class="{ active: viewMode === 'individuel' }"
+          @click="viewMode = 'individuel'"
+        >
+          Individuel
+        </button>
+      </div>
     </div>
 
     <p v-if="!displayRows.length" class="empty">
@@ -35,7 +68,10 @@
           <th class="col-code-client">Code Client</th>
           <th class="col-compte">Compte</th>
           <th>Objet</th>
+          <th>Priorité</th>
           <th v-if="viewMode === 'equipe'">Propriétaire</th>
+          <th v-if="viewMode === 'equipe'">Catégorie</th>
+          <th v-else>Catégorie</th>
           <th class="col-date-promis">Date promis pour</th>
           <th>Priorité RMS</th>
         </tr>
@@ -48,8 +84,21 @@
           <td class="col-objet" :title="row.Objet">
             {{ truncateText(row.Objet, 35) }}
           </td>
+          <td class="col-priorite" :title="row.Priorite">
+            {{ row.Priorite }}
+          </td>
           <td v-if="viewMode === 'equipe'" class="col-proprietaire" :title="row.Proprietaire">
             {{ row.Proprietaire }}
+          </td>
+          <td
+            v-if="viewMode === 'equipe'"
+            class="col-categorie"
+            :title="row.Categorie"
+          >
+            {{ row.Categorie }}
+          </td>
+          <td v-else class="col-categorie" :title="row.Categorie">
+            {{ row.Categorie }}
           </td>
           <td class="col-date-promis">
             <div class="promise-cell">
@@ -69,15 +118,30 @@
           </td>
           <td>
             <div class="rms-cell">
-              <div class="rms-timeline">
-                <div
-                  v-for="(date, idx) in row.Dates"
-                  :key="`${row.NumeroTicket}-${idx}`"
-                  class="rms-node"
-                  :class="dateStatusClass(date)"
-                >
-                  <span class="rms-date">{{ date }}</span>
-                </div>
+              <span
+                class="rms-active"
+                :class="dateStatusClass(latestDate(row))"
+              >
+                {{ latestDate(row) }}
+              </span>
+              <button
+                v-if="historyDates(row).length"
+                type="button"
+                class="rms-counter"
+                :aria-expanded="isHistoryOpen(row, index)"
+                :aria-controls="`rms-history-${index}`"
+                @mouseenter="showHistory(row, index)"
+                @mouseleave="hideHistory(row, index)"
+                @click="toggleHistory(row, index)"
+              >
+                +{{ historyDates(row).length }}
+              </button>
+              <div
+                v-if="isHistoryOpen(row, index)"
+                class="rms-history"
+                :id="`rms-history-${index}`"
+              >
+                {{ historyDates(row).join(" • ") }}
               </div>
             </div>
           </td>
@@ -92,6 +156,10 @@ import { ref, computed, onMounted } from "vue";
 
 const rows = ref([]);
 const viewMode = ref("equipe");
+const handlerFilter = ref("all");
+const buFilter = ref([]);
+const hoveredHistoryKey = ref(null);
+const pinnedHistoryKey = ref(null);
 
 const normalizeDate = (raw) => {
   if (!raw) return null;
@@ -128,6 +196,11 @@ const isEquipe = (ticket) => {
   return owner.includes("equipe") || owner.includes("équipe") || owner.includes("pole") || owner.includes("pôle");
 };
 
+const isClientStatus = (value) => {
+  const normalized = String(value ?? "").toLowerCase().trim();
+  return normalized === "attente retour client";
+};
+
 const parseMonthYear = (value) => {
   if (!value) return null;
   const clean = String(value).replace(/[^\d]/g, "");
@@ -136,6 +209,19 @@ const parseMonthYear = (value) => {
   const year = Number(clean.slice(2));
   if (!month || month < 1 || month > 12) return null;
   return { month, year };
+};
+
+const sortRmsDates = (values) => {
+  const sorted = [...values].sort((a, b) => {
+    const parsedA = parseMonthYear(a);
+    const parsedB = parseMonthYear(b);
+    if (!parsedA && !parsedB) return String(a).localeCompare(String(b), "fr");
+    if (!parsedA) return -1;
+    if (!parsedB) return 1;
+    if (parsedA.year !== parsedB.year) return parsedA.year - parsedB.year;
+    return parsedA.month - parsedB.month;
+  });
+  return sorted;
 };
 
 const dateStatusClass = (value) => {
@@ -236,11 +322,55 @@ const isPromiseOverdue = (value) => {
 };
 
 const displayRows = computed(() => {
-  if (viewMode.value === "equipe") {
-    return rows.value;
+  let filtered = rows.value;
+  if (viewMode.value !== "equipe") {
+    filtered = filtered.filter((row) => !isEquipe(row));
   }
-  return rows.value.filter((row) => !isEquipe(row));
+
+  if (handlerFilter.value === "client") {
+    filtered = filtered.filter((row) => isClientStatus(row.Statut));
+  } else if (handlerFilter.value === "adp") {
+    filtered = filtered.filter((row) => !isClientStatus(row.Statut));
+  }
+
+  if (viewMode.value === "equipe" && buFilter.value.length) {
+    filtered = filtered.filter((row) =>
+      buFilter.value.includes(row.ClassificationBU)
+    );
+  }
+
+  return filtered;
 });
+
+const rowKey = (row, index) => `${row.NumeroTicket ?? "ticket"}-${index}`;
+
+const latestDate = (row) => row?.Dates?.[row.Dates.length - 1] ?? "";
+
+const historyDates = (row) => {
+  if (!row?.Dates?.length) return [];
+  return row.Dates.slice(0, -1);
+};
+
+const showHistory = (row, index) => {
+  hoveredHistoryKey.value = rowKey(row, index);
+};
+
+const hideHistory = (row, index) => {
+  const key = rowKey(row, index);
+  if (hoveredHistoryKey.value === key) {
+    hoveredHistoryKey.value = null;
+  }
+};
+
+const toggleHistory = (row, index) => {
+  const key = rowKey(row, index);
+  pinnedHistoryKey.value = pinnedHistoryKey.value === key ? null : key;
+};
+
+const isHistoryOpen = (row, index) => {
+  const key = rowKey(row, index);
+  return hoveredHistoryKey.value === key || pinnedHistoryKey.value === key;
+};
 
 onMounted(() => {
   const stored = localStorage.getItem("tickets");
@@ -254,19 +384,32 @@ onMounted(() => {
 
   rows.value = tickets
     .map((ticket) => {
-      const dates = extractRmsDates(ticket.IdExterne);
+      const dates = sortRmsDates(extractRmsDates(ticket.IdExterne));
       if (!dates.length) return null;
       return {
         NumeroTicket: ticket.NumeroTicket,
         Objet: ticket.Objet,
+        Priorite: ticket.Priorite,
         CodeClient: ticket.CodeClient,
         Compte: ticket.Compte,
         Proprietaire: ticket.Proprietaire,
+        Categorie: ticket.Categorie,
+        ClassificationBU: ticket.ClassificationBU,
+        Statut: ticket.Statut,
         DatePromisPour: ticket.DatePromisPour,
         Dates: dates,
       };
     })
     .filter(Boolean);
+});
+
+const buOptions = computed(() => {
+  const values = rows.value
+    .map((row) => row.ClassificationBU)
+    .filter((value) => value && String(value).trim().length);
+  return Array.from(new Set(values)).sort((a, b) =>
+    String(a).localeCompare(String(b), "fr", { sensitivity: "base" })
+  );
 });
 </script>
 
@@ -282,10 +425,41 @@ onMounted(() => {
   color: #243b53;
 }
 
-.toggle {
+.filters-row {
   margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.toggle {
   display: inline-flex;
   gap: 8px;
+}
+
+.filter-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-label {
+  font-weight: 600;
+  color: #243b53;
+}
+
+.filter-select {
+  padding: 6px 10px;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.filter-select[multiple] {
+  min-width: 180px;
+  min-height: 70px;
 }
 
 .toggle-btn {
@@ -315,7 +489,6 @@ onMounted(() => {
   border-collapse: collapse;
   background: #ffffff;
   border-radius: 12px;
-  overflow: hidden;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
 }
 
@@ -380,6 +553,11 @@ onMounted(() => {
   text-overflow: ellipsis;
 }
 
+.col-priorite {
+  width: 100px;
+  white-space: nowrap;
+}
+
 .col-compte {
   max-width: 220px;
   white-space: nowrap;
@@ -389,6 +567,13 @@ onMounted(() => {
 
 .col-proprietaire {
   max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-categorie {
+  max-width: 200px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -469,13 +654,6 @@ onMounted(() => {
 }
 
 .rms-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.rms-timeline {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -483,59 +661,83 @@ onMounted(() => {
   position: relative;
 }
 
-.rms-timeline::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 2px;
-  background: #e2e8f0;
-  transform: translateY(-50%);
-}
-
-.rms-node {
-  display: inline-flex;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: #0f172a;
-  position: relative;
-  background: #ffffff;
-  padding: 0 1px;
-}
-
-.rms-date {
+.rms-active {
   background: #f1f5f9;
   padding: 5px 10px;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
   letter-spacing: 0.3px;
   border-left-width: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-.chip-overdue .rms-date {
+.rms-active.chip-overdue {
   border-color: #fecaca;
   color: #b91c1c;
   border-left-color: #ef4444;
 }
 
-.chip-current .rms-date {
+.rms-active.chip-current {
   border-color: #86efac;
   color: #166534;
   border-left-color: #22c55e;
 }
 
-.chip-future .rms-date {
+.rms-active.chip-future {
   border-color: #86efac;
   color: #166534;
   border-left-color: #22c55e;
 }
 
-.chip-unknown .rms-date {
+.rms-active.chip-unknown {
   border-color: #cbd5e1;
   color: #334155;
   border-left-color: #94a3b8;
+}
+
+.rms-counter {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.rms-counter:hover {
+  background: #e2e8f0;
+}
+
+.rms-history {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.16);
+  border: 1px solid #e2e8f0;
+  min-width: 220px;
+  z-index: 5;
+}
+
+.rms-history::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 18px;
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border-left: 1px solid #e2e8f0;
+  border-top: 1px solid #e2e8f0;
+  transform: rotate(45deg);
 }
 </style>
 
