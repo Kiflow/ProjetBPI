@@ -15,7 +15,7 @@ const mapHeader = (header) => {
 
   if (key.includes("idutilisateur")) return "userId";
   if (key === "nom") return "lastName";
-  if (key === "prenom") return "firstName";
+  if (key === "prénom") return "firstName";
   if (key === "email") return "email";
   if (key === "poste") return "position";
   if (key.includes("posteparent")) return "parentPosition";
