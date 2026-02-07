@@ -131,14 +131,27 @@ const loadEmployees = () => {
   return employees;
 };
 
+const normalizeValue = (value) => (value || "").trim();
+
 const findByUserId = (userId) => {
+  const normalized = normalizeValue(userId);
   const employees = loadEmployees();
   return employees.find(
-    (employee) => employee.userId && employee.userId === userId
+    (employee) => employee.userId && normalizeValue(employee.userId) === normalized
+  );
+};
+
+const findByGroup = (groupName) => {
+  const normalized = normalizeValue(groupName);
+  const employees = loadEmployees();
+  return employees.filter(
+    (employee) =>
+      employee.group && normalizeValue(employee.group) === normalized
   );
 };
 
 module.exports = {
   loadEmployees,
-  findByUserId
+  findByUserId,
+  findByGroup
 };

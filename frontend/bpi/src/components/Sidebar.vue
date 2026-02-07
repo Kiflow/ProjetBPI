@@ -43,14 +43,6 @@
         <span>Priorité RMS</span>
       </router-link>
 
-      <router-link to="/habilitation" class="nav-item">
-        <!-- Shield Check SVG -->
-        <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 3l7.5 3v6c0 5.25-3.75 8.25-7.5 9-3.75-.75-7.5-3.75-7.5-9V6L12 3zm-3 9l2.25 2.25L15 10.5"/>
-        </svg>
-        <span>Habilitation</span>
-      </router-link>
 
       <router-link to="/permanence" class="nav-item">
         <!-- Calendar SVG -->
@@ -61,30 +53,50 @@
         <span>Permanence</span>
       </router-link>
 
-      <router-link to="/client-plan-action" class="nav-item">
-        <!-- Clipboard Check SVG -->
-        <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M9 3h6a2 2 0 012 2v2h-2V5H9v2H7V5a2 2 0 012-2zm-2 6h10m-10 4h6m5.5 3.5l-2 2-1-1"/>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M7 7h10a2 2 0 012 2v9a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2z"/>
-        </svg>
-        <span>Client en plan d'action</span>
-      </router-link>
-
-      <router-link to="/client-sensible" class="nav-item">
-        <!-- User Alert SVG -->
-        <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 11a4 4 0 100-8 4 4 0 000 8zm-7 9a7 7 0 0114 0H5z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M18 8.5v3m0 3h.01"/>
-        </svg>
-        <span>Client sensible</span>
-      </router-link>
+      <div class="nav-group">
+        <button
+          class="nav-item nav-group-toggle"
+          type="button"
+          :class="{ active: isInfoOpen }"
+          @click="toggleInfo"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M11.25 11.25h1.5v5.25h-1.5zM12 8.25h.008"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4.5 12a7.5 7.5 0 1115 0 7.5 7.5 0 01-15 0z"/>
+          </svg>
+          <span>Info client</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="chevron" viewBox="0 0 24 24" fill="none">
+            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="m6 9 6 6 6-6"/>
+          </svg>
+        </button>
+        <div v-if="isInfoOpen" class="nav-submenu">
+          <router-link to="/habilitation" class="nav-item sub-item">
+            <span>Habilitation</span>
+          </router-link>
+          <router-link to="/client-plan-action" class="nav-item sub-item">
+            <span>Client en plan d'action</span>
+          </router-link>
+          <router-link to="/client-sensible" class="nav-item sub-item">
+            <span>Client sensible</span>
+          </router-link>
+        </div>
+      </div>
     </nav>
   </div>
 </template>
+
+<script setup>
+import { ref } from "vue";
+
+const isInfoOpen = ref(false);
+
+const toggleInfo = () => {
+  isInfoOpen.value = !isInfoOpen.value;
+};
+</script>
 
 <style scoped>
 .sidebar {
@@ -120,6 +132,64 @@
   border-radius: 10px;
   font-weight: 600;
   transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-group-toggle {
+  width: 100%;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 16px;
+  background: transparent;
+}
+
+.nav-group-toggle.active {
+  background: #0f2742;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.nav-group-toggle .chevron {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+.nav-group-toggle.active .chevron {
+  transform: rotate(180deg);
+}
+
+.nav-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.sub-item {
+  padding-left: 16px;
+  font-weight: 600;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.sub-item:hover {
+  background-color: #e8edf3;
+  color: #0f2742;
+  transform: translateX(2px);
+}
+
+.sub-item.router-link-active {
+  background: #0f2742;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  border-color: transparent;
 }
 
 .nav-item:hover {
