@@ -63,6 +63,10 @@ const login = async () => {
     window.dispatchEvent(new Event("auth-changed"));
     router.push("/");
   } catch (e) {
+    console.error("[login] Erreur login:", e);
+    if (e?.response) {
+      console.error("[login] Response:", e.response.status, e.response.data);
+    }
     alert("Identifiants incorrects");
   } finally {
     loading.value = false;

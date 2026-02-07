@@ -90,17 +90,26 @@ const detectDelimiter = (text) => {
 
 const loadEmployees = () => {
   if (!fs.existsSync(DATA_PATH)) {
+    console.warn(`[employees] CSV introuvable: ${DATA_PATH}`);
     return [];
   }
 
   const raw = fs.readFileSync(DATA_PATH, "utf8").replace(/^\uFEFF/, "");
-  if (!raw.trim()) return [];
+  if (!raw.trim()) {
+    console.warn(`[employees] CSV vide: ${DATA_PATH}`);
+    return [];
+  }
 
   const delimiter = detectDelimiter(raw);
   const rows = parseCsv(raw, delimiter);
-  if (rows.length === 0) return [];
+  if (rows.length === 0) {
+    console.warn(`[employees] CSV sans lignes exploitables`);
+    return [];
+  }
 
   const headers = rows[0].map(mapHeader);
+  console.log("[employees] Headers detectes:", rows[0]);
+  console.log("[employees] Mapping:", headers);
   const employees = [];
 
   for (let i = 1; i < rows.length; i += 1) {
@@ -118,6 +127,7 @@ const loadEmployees = () => {
     }
   }
 
+  console.log(`[employees] Employes charges: ${employees.length}`);
   return employees;
 };
 

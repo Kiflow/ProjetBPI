@@ -17,16 +17,27 @@ exports.login = (req, res) => {
   const { username, userId, password } = req.body;
   const loginId = (userId || username || "").trim();
 
+  console.log("[auth] Tentative login:", {
+    loginId,
+    hasPassword: Boolean(password)
+  });
+
   if (!loginId || !password) {
+    console.warn("[auth] Credentials manquants");
     return res.status(400).json({ message: "Missing credentials" });
   }
 
   const employee = employeeService.findByUserId(loginId);
 
   if (!employee || employee.password !== password) {
+    console.warn("[auth] Identifiants invalides", {
+      foundUser: Boolean(employee),
+      userId: loginId
+    });
     return res.status(401).json({ message: "Invalid credentials" });
   }
 
+  console.log("[auth] Login OK:", loginId);
   const payload = buildUserPayload(employee);
   const token = jwt.sign(payload, "SECRET_KEY", { expiresIn: "8h" });
 
