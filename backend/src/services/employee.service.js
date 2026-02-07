@@ -14,10 +14,11 @@ const mapHeader = (header) => {
   const key = normalizeHeader(header);
 
   if (key.includes("idutilisateur")) return "userId";
+  if (key.includes("deuxiemeprenom")) return "middleName";
+  if (key.includes("prenom") || key.includes("prnom")) return "firstName";
   if (key === "nom") return "lastName";
-  if (key === "prénom") return "firstName";
   if (key === "email") return "email";
-  if (key === "poste") return "position";
+  if (key === "poste" || key.includes("intituleposte")) return "position";
   if (key.includes("posteparent")) return "parentPosition";
   if (key.includes("nomduresponsable")) return "managerName";
   if (key === "groupe") return "group";
