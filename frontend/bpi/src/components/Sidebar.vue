@@ -51,6 +51,37 @@
         </svg>
         <span>Habilitation</span>
       </router-link>
+
+      <router-link to="/permanence" class="nav-item">
+        <!-- Calendar SVG -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M8 7V4m8 3V4M3 9h18M5 7h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2z"/>
+        </svg>
+        <span>Permanence</span>
+      </router-link>
+
+      <router-link to="/client-plan-action" class="nav-item">
+        <!-- Clipboard Check SVG -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 3h6a2 2 0 012 2v2h-2V5H9v2H7V5a2 2 0 012-2zm-2 6h10m-10 4h6m5.5 3.5l-2 2-1-1"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M7 7h10a2 2 0 012 2v9a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2z"/>
+        </svg>
+        <span>Client en plan d'action</span>
+      </router-link>
+
+      <router-link to="/client-sensible" class="nav-item">
+        <!-- User Alert SVG -->
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 11a4 4 0 100-8 4 4 0 000 8zm-7 9a7 7 0 0114 0H5z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M18 8.5v3m0 3h.01"/>
+        </svg>
+        <span>Client sensible</span>
+      </router-link>
     </nav>
   </div>
 </template>

@@ -6,7 +6,8 @@ module.exports = (req, res, next) => {
   if (!token) return res.sendStatus(401);
 
   try {
-    jwt.verify(token, "SECRET_KEY");
+    const decoded = jwt.verify(token, "SECRET_KEY");
+    req.user = decoded;
     next();
   } catch {
     res.sendStatus(403);

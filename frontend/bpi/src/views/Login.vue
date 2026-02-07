@@ -1,19 +1,17 @@
 <template>
   <div class="login-page">
     <div class="login-card">
-      <!-- Logo / Titre -->
       <div class="header">
         <h1>Backlog Dashboard</h1>
       </div>
 
-      <!-- Formulaire -->
       <form @submit.prevent="login">
         <div class="field">
-          <label>Nom d'utilisateur</label>
+          <label>ID utilisateur</label>
           <input
-            v-model="username"
+            v-model="userId"
             type="text"
-            placeholder="user"
+            placeholder="id.utilisateur"
             required
           />
         </div>
@@ -23,7 +21,7 @@
           <input
             v-model="password"
             type="password"
-            placeholder="••••••••"
+            placeholder="********"
             required
           />
         </div>
@@ -33,9 +31,8 @@
         </button>
       </form>
 
-      <!-- Footer -->
       <div class="footer">
-        <small>Accès réservé aux collaboretaur ADP</small>
+        <small>Acces reserve aux collaborateurs ADP</small>
       </div>
     </div>
   </div>
@@ -48,7 +45,7 @@ import api from "../services/api";
 
 const router = useRouter();
 
-const username = ref("");
+const userId = ref("");
 const password = ref("");
 const loading = ref(false);
 
@@ -57,11 +54,12 @@ const login = async () => {
     loading.value = true;
 
     const res = await api.post("/auth/login", {
-      username: username.value,
+      userId: userId.value,
       password: password.value
     });
 
     localStorage.setItem("token", res.data.token);
+    localStorage.setItem("user", JSON.stringify(res.data.user));
     window.dispatchEvent(new Event("auth-changed"));
     router.push("/");
   } catch (e) {

@@ -41,6 +41,7 @@ onBeforeUnmount(() => {
 // Fonction de logout
 const logout = () => {
   localStorage.removeItem("token");
+  localStorage.removeItem("user");
   syncAuth(); // met à jour immédiatement
   router.push("/login");
 };

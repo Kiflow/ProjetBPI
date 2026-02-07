@@ -1,18 +1,42 @@
 const jwt = require("jsonwebtoken");
+const employeeService = require("../services/employee.service");
+
+const buildUserPayload = (employee) => ({
+  userId: employee.userId,
+  firstName: employee.firstName,
+  lastName: employee.lastName,
+  email: employee.email,
+  position: employee.position,
+  parentPosition: employee.parentPosition,
+  managerName: employee.managerName,
+  group: employee.group,
+  role: "user"
+});
 
 exports.login = (req, res) => {
-  console.log("BODY REÇU :", req.body);
-  const { username, password } = req.body;
+  const { username, userId, password } = req.body;
+  const loginId = (userId || username || "").trim();
 
-  if (username === "admin" && password === "admin") {
-    const token = jwt.sign(
-      { role: "admin" },
-      "SECRET_KEY",
-      { expiresIn: "8h" }
-    );
-
-    return res.json({ token });
+  if (!loginId || !password) {
+    return res.status(400).json({ message: "Missing credentials" });
   }
 
-  res.status(401).json({ message: "Invalid credentials" });
+  const employee = employeeService.findByUserId(loginId);
+
+  if (!employee || employee.password !== password) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+
+  const payload = buildUserPayload(employee);
+  const token = jwt.sign(payload, "SECRET_KEY", { expiresIn: "8h" });
+
+  return res.json({ token, user: payload });
+};
+
+exports.me = (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  return res.json({ user: req.user });
 };

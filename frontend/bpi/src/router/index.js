@@ -5,6 +5,9 @@ import Tickets from "../views/Tickets.vue";
 import CentralisationDemande from "../views/CentralisationDemande.vue";
 import PrioriteRms from "../views/PrioriteRms.vue";
 import Habilitation from "../views/Habilitation.vue";
+import Permanence from "../views/Permanence.vue";
+import ClientPlanAction from "../views/ClientPlanAction.vue";
+import ClientSensible from "../views/ClientSensible.vue";
 
 const routes = [
   { path: "/login", component: Login },
@@ -23,6 +26,21 @@ const routes = [
   {
     path: "/habilitation",
     component: Habilitation,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: "/permanence",
+    component: Permanence,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: "/client-plan-action",
+    component: ClientPlanAction,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: "/client-sensible",
+    component: ClientSensible,
     meta: { requiresAuth: true }
   }
 ];
