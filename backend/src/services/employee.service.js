@@ -94,7 +94,12 @@ const loadEmployees = () => {
     return [];
   }
 
-  const raw = fs.readFileSync(DATA_PATH, "utf8").replace(/^\uFEFF/, "");
+  const buffer = fs.readFileSync(DATA_PATH);
+  let raw = buffer.toString("utf8");
+  if (raw.includes("�")) {
+    raw = buffer.toString("latin1");
+  }
+  raw = raw.replace(/^\uFEFF/, "");
   if (!raw.trim()) {
     console.warn(`[employees] CSV vide: ${DATA_PATH}`);
     return [];
