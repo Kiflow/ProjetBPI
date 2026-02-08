@@ -124,6 +124,10 @@ const pageTitle = computed(() => {
       return "Client sensible";
     case "/upload":
       return "Upload Excel";
+    case "/facturation":
+      return "Facturation";
+    case "/wiki":
+      return "Wiki";
     default:
       return "Page";
   }

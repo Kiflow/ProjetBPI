@@ -2,7 +2,6 @@
   <div class="page">
     <div class="page-header">
       <div>
-        <h2>Centralisation demande</h2>
         <p class="subtitle">Exemples de themes et tarifs de facturation.</p>
       </div>
     </div>

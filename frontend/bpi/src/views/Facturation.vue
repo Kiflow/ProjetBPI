@@ -1,11 +1,5 @@
 <template>
   <div class="page">
-    <div class="page-header">
-      <div>
-        <h2>Facturation</h2>
-      </div>
-    </div>
-
     <div class="card legend">
       <div class="legend-title">Legende difficulte</div>
       <div class="legend-item">
@@ -25,6 +19,19 @@
         <span class="badge level-complexe">Complexe</span>
         <span>
           Paramétrage complexe dont la réalisation sera de préférence reportée au mois prochain, avec régularisation du M-1.
+        </span>
+      </div>
+    </div>
+
+    <div class="gta-card">
+      <div class="gta-label">Client GTA</div>
+      <div class="gta-control">
+        <label class="switch">
+          <input id="gta-filter" type="checkbox" v-model="hasGta" />
+          <span class="slider" />
+        </label>
+        <span class="switch-label">
+          {{ hasGta ? "Avec GTA" : "Sans GTA" }}
         </span>
       </div>
     </div>
@@ -170,6 +177,8 @@ const showSubThemeDropdown = ref(false);
 
 const themeQuery = ref("");
 const subThemeQuery = ref("");
+
+const hasGta = ref(false);
 
 const themeOptions = computed(() =>
   Array.from(new Set(rows.value.map((row) => row.theme))).sort()
@@ -343,15 +352,65 @@ const formatLevel = (level) => {
   color: #1f2937;
 }
 
-.filter-field input {
+.filter-field input,
+.filter-field select {
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
 }
 
-.filter-field input {
+.filter-field input,
+.filter-field select {
   font-weight: 500;
+}
+
+.switch {
+  position: relative;
+  display: inline-flex;
+  width: 44px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  inset: 0;
+  background: #e2e8f0;
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+.slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  top: 3px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.switch input:checked + .slider {
+  background: #0f2742;
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(20px);
+}
+
+.switch-label {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 600;
 }
 
 .filter-select {
@@ -426,6 +485,25 @@ const formatLevel = (level) => {
   font-size: 13px;
   color: #1f2937;
   line-height: 1.4;
+}
+
+.gta-card {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  margin-top: 40px;
+}
+
+.gta-label {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.gta-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .theme-block h3 {

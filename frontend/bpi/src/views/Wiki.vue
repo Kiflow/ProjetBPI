@@ -2,7 +2,6 @@
   <div class="page">
     <div class="page-header">
       <div>
-        <h2>Wiki</h2>
         <p class="subtitle">Base de connaissance et procedures internes.</p>
       </div>
     </div>
