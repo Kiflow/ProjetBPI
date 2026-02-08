@@ -8,6 +8,8 @@ import Habilitation from "../views/Habilitation.vue";
 import Permanence from "../views/Permanence.vue";
 import ClientPlanAction from "../views/ClientPlanAction.vue";
 import ClientSensible from "../views/ClientSensible.vue";
+import Facturation from "../views/Facturation.vue";
+import Wiki from "../views/Wiki.vue";
 
 const routes = [
   { path: "/login", component: Login },
@@ -41,6 +43,16 @@ const routes = [
   {
     path: "/client-sensible",
     component: ClientSensible,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: "/facturation",
+    component: Facturation,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: "/wiki",
+    component: Wiki,
     meta: { requiresAuth: true }
   }
 ];

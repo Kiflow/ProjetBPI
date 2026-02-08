@@ -84,6 +84,33 @@
           </router-link>
         </div>
       </div>
+
+      <div class="nav-group">
+        <button
+          class="nav-item nav-group-toggle"
+          type="button"
+          :class="{ active: isUtilityOpen }"
+          @click="toggleUtility"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4.5 6.75h15m-15 4.5h15m-15 4.5h15m-15 4.5h15"/>
+          </svg>
+          <span>Utilitaire</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="chevron" viewBox="0 0 24 24" fill="none">
+            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="m6 9 6 6 6-6"/>
+          </svg>
+        </button>
+        <div v-if="isUtilityOpen" class="nav-submenu">
+          <router-link to="/facturation" class="nav-item sub-item">
+            <span>Facturation</span>
+          </router-link>
+          <router-link to="/wiki" class="nav-item sub-item">
+            <span>Wiki</span>
+          </router-link>
+        </div>
+      </div>
     </nav>
   </div>
 </template>
@@ -92,9 +119,14 @@
 import { ref } from "vue";
 
 const isInfoOpen = ref(false);
+const isUtilityOpen = ref(false);
 
 const toggleInfo = () => {
   isInfoOpen.value = !isInfoOpen.value;
+};
+
+const toggleUtility = () => {
+  isUtilityOpen.value = !isUtilityOpen.value;
 };
 </script>
 
