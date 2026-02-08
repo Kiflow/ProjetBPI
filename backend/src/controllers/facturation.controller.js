@@ -2,6 +2,11 @@ const { readFacturationCatalogue } = require("../services/facturation.service");
 
 exports.getFacturation = (req, res) => {
   try {
+    console.log("[facturation] Requete recue:", {
+      method: req.method,
+      path: req.originalUrl,
+      user: req.user || null
+    });
     const data = readFacturationCatalogue();
     res.json(data);
   } catch (error) {

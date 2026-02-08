@@ -12,8 +12,10 @@ const isMarked = (value) => {
 };
 
 const resolveCataloguePath = () => {
-  const dataDir = path.join(__dirname, "../data");
+  const dataDir = path.join(__dirname, "../../data");
+  console.log("[facturation] Data dir:", dataDir);
   const files = fs.readdirSync(dataDir);
+  console.log("[facturation] Fichiers disponibles:", files);
   const match = files.find((file) => {
     const lower = file.toLowerCase();
     return (
@@ -23,11 +25,15 @@ const resolveCataloguePath = () => {
   });
 
   if (!match) {
+    console.error(
+      "[facturation] Aucun fichier catalogue ne correspond au nom attendu."
+    );
     throw new Error(
       "Catalogue de service interne introuvable dans backend/data."
     );
   }
 
+  console.log("[facturation] Fichier catalogue selectionne:", match);
   return path.join(dataDir, match);
 };
 
@@ -40,17 +46,34 @@ const getLevelFromRow = (row) => {
 
 exports.readFacturationCatalogue = () => {
   const filePath = resolveCataloguePath();
+  console.log("[facturation] Lecture fichier:", filePath);
   const workbook = xlsx.readFile(filePath, { cellDates: true });
+  console.log("[facturation] Feuilles disponibles:", workbook.SheetNames);
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = xlsx.utils.sheet_to_json(sheet, {
     header: 1,
     defval: "",
     raw: false
   });
+  console.log("[facturation] Nombre de lignes lues:", rows.length);
+  console.log("[facturation] Apercu lignes 1-6:", rows.slice(0, 6));
 
-  return rows.slice(2).reduce((acc, row, index) => {
-    const theme = String(row[1] || "").trim();
+  const startRowIndex = 2;
+  let lastTheme = "";
+
+  const data = rows.reduce((acc, row, index) => {
+    const rawTheme = String(row[1] || "").trim();
+
+    if (rawTheme) {
+      lastTheme = rawTheme;
+    }
+
+    if (index < startRowIndex) {
+      return acc;
+    }
+
     const subTheme = String(row[2] || "").trim();
+    const theme = rawTheme || lastTheme;
 
     if (!theme || !subTheme) return acc;
 
@@ -75,4 +98,7 @@ exports.readFacturationCatalogue = () => {
 
     return acc;
   }, []);
+
+  console.log("[facturation] Lignes utiles parsees:", data.length);
+  return data;
 };
