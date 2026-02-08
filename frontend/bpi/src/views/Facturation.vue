@@ -3,34 +3,103 @@
     <div class="page-header">
       <div>
         <h2>Facturation</h2>
-        <p class="subtitle">
-          Themes, sous-themes, niveau de difficulte et facturation GAP.
-        </p>
+      </div>
+    </div>
+
+    <div class="card legend">
+      <div class="legend-title">Legende difficulte</div>
+      <div class="legend-item">
+        <span class="badge level-simple">Simple</span>
+        <span>
+          Paramétrage effectuable à n’importe quel moment du cycle de paie, sans impact perturbateur sur la paie du mois en cours
+(peut nécessiter le recyclage d’un salarié pour prise en compte).
+        </span>
+      </div>
+      <div class="legend-item">
+        <span class="badge level-classique">Classique</span>
+        <span>
+          Paramétrage plus complexe, pouvant être effectué pour la paie du mois en cours, à condition notamment que la demande complète ait été recueillie avant la date de release et dans le respect du format attendu.
+        </span>
+      </div>
+      <div class="legend-item">
+        <span class="badge level-complexe">Complexe</span>
+        <span>
+          Paramétrage complexe dont la réalisation sera de préférence reportée au mois prochain, avec régularisation du M-1.
+        </span>
       </div>
     </div>
 
     <div class="card filters">
       <div class="filter-field">
         <label for="theme-filter">Theme</label>
-        <select id="theme-filter" v-model="selectedTheme">
-          <option value="all">Tous les themes</option>
-          <option v-for="theme in themeOptions" :key="theme" :value="theme">
-            {{ theme }}
-          </option>
-        </select>
+        <div ref="themeWrap" class="filter-select">
+          <input
+            id="theme-filter"
+            v-model="themeQuery"
+            type="text"
+            placeholder="Tous les themes"
+            autocomplete="off"
+            @focus="openTheme"
+            @click="openTheme"
+            @input="openTheme"
+          />
+          <div v-if="showThemeDropdown" class="dropdown">
+            <button type="button" class="dropdown-item" @click="selectTheme('')">
+              Tous les themes
+            </button>
+            <button
+              v-for="theme in filteredThemeOptions"
+              :key="theme"
+              type="button"
+              class="dropdown-item"
+              @click="selectTheme(theme)"
+            >
+              {{ theme }}
+            </button>
+            <div v-if="filteredThemeOptions.length === 0" class="dropdown-empty">
+              Aucun resultat
+            </div>
+          </div>
+        </div>
       </div>
       <div class="filter-field">
         <label for="subtheme-filter">Sous-theme</label>
-        <select id="subtheme-filter" v-model="selectedSubTheme">
-          <option value="all">Tous les sous-themes</option>
-          <option
-            v-for="subTheme in subThemeOptions"
-            :key="subTheme"
-            :value="subTheme"
-          >
-            {{ subTheme }}
-          </option>
-        </select>
+        <div ref="subThemeWrap" class="filter-select">
+          <input
+            id="subtheme-filter"
+            v-model="subThemeQuery"
+            type="text"
+            placeholder="Tous les sous-themes"
+            autocomplete="off"
+            @focus="openSubTheme"
+            @click="openSubTheme"
+            @input="openSubTheme"
+          />
+          <div v-if="showSubThemeDropdown" class="dropdown">
+            <button
+              type="button"
+              class="dropdown-item"
+              @click="selectSubTheme('')"
+            >
+              Tous les sous-themes
+            </button>
+            <button
+              v-for="subTheme in filteredSubThemeOptions"
+              :key="subTheme"
+              type="button"
+              class="dropdown-item"
+              @click="selectSubTheme(subTheme)"
+            >
+              {{ subTheme }}
+            </button>
+            <div
+              v-if="filteredSubThemeOptions.length === 0"
+              class="dropdown-empty"
+            >
+              Aucun resultat
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -49,7 +118,8 @@
               <tr>
                 <th>Sous-theme</th>
                 <th>Difficulte</th>
-                <th>Facturation paie</th>
+                <th>Acteur</th>
+                <th>Facturation PAIE (jours)</th>
                 <th>Facturation GAP (jours)</th>
               </tr>
             </thead>
@@ -62,11 +132,17 @@
                   </span>
                   <span v-else>-</span>
                 </td>
+                <td>
+                  <span v-if="row.actors?.paie && row.actors?.gap">PAIE + GAP</span>
+                  <span v-else-if="row.actors?.paie">PAIE</span>
+                  <span v-else-if="row.actors?.gap">GAP</span>
+                  <span v-else>-</span>
+                </td>
                 <td>{{ row.pay || "-" }}</td>
                 <td>{{ row.gapDays || "-" }}</td>
               </tr>
               <tr v-if="group.items.length === 0">
-                <td colspan="4" class="empty-row">Aucun sous-theme.</td>
+                <td colspan="5" class="empty-row">Aucun sous-theme.</td>
               </tr>
             </tbody>
           </table>
@@ -80,35 +156,59 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import api from "../services/api";
 
 const rows = ref([]);
 const loading = ref(false);
 const error = ref("");
 
-const selectedTheme = ref("all");
-const selectedSubTheme = ref("all");
+const themeWrap = ref(null);
+const subThemeWrap = ref(null);
+const showThemeDropdown = ref(false);
+const showSubThemeDropdown = ref(false);
+
+const themeQuery = ref("");
+const subThemeQuery = ref("");
 
 const themeOptions = computed(() =>
   Array.from(new Set(rows.value.map((row) => row.theme))).sort()
 );
 
 const subThemeOptions = computed(() => {
-  const subset =
-    selectedTheme.value === "all"
-      ? rows.value
-      : rows.value.filter((row) => row.theme === selectedTheme.value);
+  const themeFilter = themeQuery.value.trim().toLowerCase();
+  const subset = themeFilter
+    ? rows.value.filter((row) => row.theme.toLowerCase().includes(themeFilter))
+    : rows.value;
   return Array.from(new Set(subset.map((row) => row.subTheme))).sort();
+});
+
+const filteredThemeOptions = computed(() => {
+  const query = themeQuery.value.trim().toLowerCase();
+  if (!query) return themeOptions.value;
+  return themeOptions.value.filter((theme) =>
+    theme.toLowerCase().includes(query)
+  );
+});
+
+const filteredSubThemeOptions = computed(() => {
+  const query = subThemeQuery.value.trim().toLowerCase();
+  if (!query) return subThemeOptions.value;
+  return subThemeOptions.value.filter((subTheme) =>
+    subTheme.toLowerCase().includes(query)
+  );
 });
 
 const filteredRows = computed(() =>
   rows.value.filter((row) => {
-    const themeMatch =
-      selectedTheme.value === "all" || row.theme === selectedTheme.value;
-    const subThemeMatch =
-      selectedSubTheme.value === "all" ||
-      row.subTheme === selectedSubTheme.value;
+    const themeFilter = themeQuery.value.trim().toLowerCase();
+    const subThemeFilter = subThemeQuery.value.trim().toLowerCase();
+    const themeMatch = themeFilter
+      ? row.theme.toLowerCase().includes(themeFilter)
+      : true;
+    const subThemeMatch = subThemeFilter
+      ? row.subTheme.toLowerCase().includes(subThemeFilter)
+      : true;
     return themeMatch && subThemeMatch;
   })
 );
@@ -142,17 +242,56 @@ const fetchFacturation = async () => {
   }
 };
 
-watch(selectedTheme, () => {
+const openTheme = () => {
+  showThemeDropdown.value = true;
+};
+
+const openSubTheme = () => {
+  showSubThemeDropdown.value = true;
+};
+
+const selectTheme = (value) => {
+  themeQuery.value = value || "";
+  showThemeDropdown.value = false;
+};
+
+const selectSubTheme = (value) => {
+  subThemeQuery.value = value || "";
+  showSubThemeDropdown.value = false;
+};
+
+const handleClickOutside = (event) => {
+  const themeEl = themeWrap.value;
+  const subThemeEl = subThemeWrap.value;
+
+  if (themeEl && !themeEl.contains(event.target)) {
+    showThemeDropdown.value = false;
+  }
+
+  if (subThemeEl && !subThemeEl.contains(event.target)) {
+    showSubThemeDropdown.value = false;
+  }
+};
+
+watch(themeQuery, () => {
+  const subThemeFilter = subThemeQuery.value.trim().toLowerCase();
   if (
-    selectedSubTheme.value !== "all" &&
-    !subThemeOptions.value.includes(selectedSubTheme.value)
+    subThemeFilter &&
+    !filteredSubThemeOptions.value.some(
+      (subTheme) => subTheme.toLowerCase() === subThemeFilter
+    )
   ) {
-    selectedSubTheme.value = "all";
+    subThemeQuery.value = "";
   }
 });
 
 onMounted(() => {
   fetchFacturation();
+  document.addEventListener("click", handleClickOutside);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleClickOutside);
 });
 
 const formatLevel = (level) => {
@@ -204,17 +343,89 @@ const formatLevel = (level) => {
   color: #1f2937;
 }
 
-.filter-field select {
+.filter-field input {
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
 }
 
+.filter-field input {
+  font-weight: 500;
+}
+
+.filter-select {
+  position: relative;
+}
+
+.dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+  padding: 6px;
+  z-index: 10;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.dropdown-item {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.dropdown-item:hover {
+  background: #f1f5f9;
+}
+
+.dropdown-empty {
+  padding: 8px 10px;
+  color: #64748b;
+  font-size: 13px;
+}
+
 .table-card {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.legend-title {
+  font-weight: 700;
+  color: #0f172a;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.legend-item {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 12px;
+  font-size: 13px;
+  color: #1f2937;
+  line-height: 1.4;
 }
 
 .theme-block h3 {
@@ -235,6 +446,7 @@ const formatLevel = (level) => {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: inset 0 0 0 1px #e2e8f0;
+  table-layout: fixed;
 }
 
 .facturation-table th,
@@ -242,6 +454,26 @@ const formatLevel = (level) => {
   border-bottom: 1px solid #e2e8f0;
   padding: 10px 12px;
   text-align: left;
+}
+
+.facturation-table th:nth-child(2),
+.facturation-table td:nth-child(2) {
+  width: 140px;
+}
+
+.facturation-table th:nth-child(3),
+.facturation-table td:nth-child(3) {
+  width: 140px;
+}
+
+.facturation-table th:nth-child(4),
+.facturation-table td:nth-child(4) {
+  width: 160px;
+}
+
+.facturation-table th:nth-child(5),
+.facturation-table td:nth-child(5) {
+  width: 170px;
 }
 
 .facturation-table th {
@@ -271,21 +503,22 @@ const formatLevel = (level) => {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  width: 90px;
 }
 
 .level-simple {
-  background: #dcfce7;
-  color: #166534;
+  background: #f8f2e9;
+  color: #5c3b06;
 }
 
 .level-classique {
-  background: #e0f2fe;
-  color: #0c4a6e;
+  background: #f3e7cf;
+  color: #6b4e11;
 }
 
 .level-complexe {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #f1d98f;
+  color: #6b4c05;
 }
 
 .empty-row {
