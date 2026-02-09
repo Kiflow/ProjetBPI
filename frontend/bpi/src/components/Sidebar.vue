@@ -107,7 +107,7 @@
             <span>Facturation</span>
           </router-link>
           <router-link to="/wiki" class="nav-item sub-item">
-            <span>Wiki</span>
+            <span>Mes wikis</span>
           </router-link>
         </div>
       </div>

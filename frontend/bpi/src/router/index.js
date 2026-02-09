@@ -53,7 +53,7 @@ const routes = [
   {
     path: "/wiki",
     component: Wiki,
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, title: "Mes wikis" }
   }
 ];
 
@@ -67,6 +67,12 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth && !isAuth) return next("/login");
   if (to.path === "/login" && isAuth) return next("/");
   next();
+});
+
+router.afterEach((to) => {
+  const baseTitle = "BPI";
+  const pageTitle = to.meta?.title ? `${to.meta.title} | ${baseTitle}` : baseTitle;
+  document.title = pageTitle;
 });
 
 export default router;

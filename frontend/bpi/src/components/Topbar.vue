@@ -127,7 +127,7 @@ const pageTitle = computed(() => {
     case "/facturation":
       return "Facturation";
     case "/wiki":
-      return "Wiki";
+      return "Mes wikis";
     default:
       return "Page";
   }

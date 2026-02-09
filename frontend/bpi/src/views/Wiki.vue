@@ -33,7 +33,7 @@
 
           <div class="form-grid">
             <label class="field">
-              <span>Groupe (optionnel)</span>
+              <span>Groupe</span>
               <select v-model="form.groupId">
                 <option value="">Sans groupe</option>
                 <option v-for="group in groups" :key="group.id" :value="group.id">
@@ -71,141 +71,105 @@
 
       <div class="card list-card">
         <div class="list-header">
-          <h3>Wikis disponibles</h3>
-          <div class="list-controls">
-            <label class="toggle">
-              <input v-model="showPreview" type="checkbox" />
-              <span>Afficher l'apercu</span>
-            </label>
-            <p class="hint">{{ wikis.length }} lien(s)</p>
-          </div>
+          <h3>Mes wikis</h3>
+          <p class="hint">{{ wikis.length }} lien(s)</p>
         </div>
 
         <div v-if="groupedWikis.length === 0" class="empty-row">
           Aucun wiki pour le moment.
         </div>
 
-        <div
-          v-for="group in groupedWikis"
-          :key="group.key"
-          class="group-block"
-          @dragover.prevent
-          @drop="handleDrop($event, group.id)"
-        >
-          <div class="group-header">
-            <div class="group-title">
-              <h4>{{ group.label }}</h4>
-              <span class="group-count">{{ group.items.length }} lien(s)</span>
-            </div>
-            <span
-              v-if="group.canRemove"
-              class="icon-action icon-danger"
-              role="button"
-              tabindex="0"
-              title="Supprimer le groupe"
-              aria-label="Supprimer le groupe"
-              @click="removeGroup(group.id)"
-              @keydown.enter.prevent="removeGroup(group.id)"
-              @keydown.space.prevent="removeGroup(group.id)"
+        <div class="wiki-list">
+            <div
+              v-for="group in groupedWikis"
+              :key="group.key"
+              class="group-block"
+              @dragover.prevent
+              @drop="handleDrop($event, group.id)"
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M6 7h12l-1 13a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7zm3-3h6l1 2H8l1-2zm2 6v8h2v-8h-2zm-4 0v8h2v-8H7zm8 0v8h2v-8h-2z"
-                />
-              </svg>
-            </span>
-          </div>
-          <div class="table-wrap">
-            <table class="wiki-table">
-              <thead>
-                <tr>
-                  <th>Nom</th>
-                  <th>Lien</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="wiki in group.items"
-                  :key="wiki.id"
-                  draggable="true"
-                  @dragstart="handleDragStart($event, wiki.id)"
+              <div class="group-header">
+                <div class="group-title">
+                  <h4>{{ group.label }}</h4>
+                  <span class="group-count">{{ group.items.length }} lien(s)</span>
+                </div>
+                <span
+                  v-if="group.canRemove"
+                  class="icon-action icon-danger"
+                  role="button"
+                  tabindex="0"
+                  title="Supprimer le groupe"
+                  aria-label="Supprimer le groupe"
+                  @click="removeGroup(group.id)"
+                  @keydown.enter.prevent="removeGroup(group.id)"
+                  @keydown.space.prevent="removeGroup(group.id)"
                 >
-                  <td class="name-cell">{{ wiki.name }}</td>
-                  <td>
-                    <a
-                      :href="wiki.url"
-                      target="_blank"
-                      rel="noreferrer"
-                      @click="setPreview(wiki)"
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M6 7h12l-1 13a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7zm3-3h6l1 2H8l1-2zm2 6v8h2v-8h-2zm-4 0v8h2v-8H7zm8 0v8h2v-8h-2z"
+                    />
+                  </svg>
+                </span>
+              </div>
+              <div class="table-wrap">
+                <table class="wiki-table">
+                  <tbody>
+                    <tr
+                      v-for="wiki in group.items"
+                      :key="wiki.id"
+                      draggable="true"
+                      @dragstart="handleDragStart($event, wiki.id)"
                     >
-                      Ouvrir
-                    </a>
-                  </td>
-                  <td class="actions-cell">
-                    <span
-                      class="icon-action"
-                      role="button"
-                      tabindex="0"
-                      title="Modifier"
-                      aria-label="Modifier"
-                      @click="editWiki(wiki)"
-                      @keydown.enter.prevent="editWiki(wiki)"
-                      @keydown.space.prevent="editWiki(wiki)"
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M3 17.25V21h3.75l11-11.03-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
-                        />
-                      </svg>
-                    </span>
-                    <span
-                      class="icon-action icon-danger"
-                      role="button"
-                      tabindex="0"
-                      title="Supprimer"
-                      aria-label="Supprimer"
-                      @click="removeWiki(wiki.id)"
-                      @keydown.enter.prevent="removeWiki(wiki.id)"
-                      @keydown.space.prevent="removeWiki(wiki.id)"
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M6 7h12l-1 13a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7zm3-3h6l1 2H8l1-2zm2 6v8h2v-8h-2zm-4 0v8h2v-8H7zm8 0v8h2v-8h-2z"
-                        />
-                      </svg>
-                    </span>
-                  </td>
-                </tr>
-                <tr v-if="group.items.length === 0">
-                  <td colspan="3" class="empty-row">Deposez un wiki ici.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div v-if="showPreview && selectedWiki" class="preview-card">
-          <div class="preview-header">
-            <div>
-              <p class="preview-title">Apercu</p>
-              <p class="preview-name">{{ selectedWiki.name }}</p>
+                      <td class="name-cell">{{ wiki.name }}</td>
+                      <td class="actions-cell">
+                        <a
+                          class="open-link"
+                          :href="wiki.url"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Ouvrir
+                        </a>
+                        <span
+                          class="icon-action"
+                          role="button"
+                          tabindex="0"
+                          title="Modifier"
+                          aria-label="Modifier"
+                          @click="editWiki(wiki)"
+                          @keydown.enter.prevent="editWiki(wiki)"
+                          @keydown.space.prevent="editWiki(wiki)"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                              d="M3 17.25V21h3.75l11-11.03-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                            />
+                          </svg>
+                        </span>
+                        <span
+                          class="icon-action icon-danger"
+                          role="button"
+                          tabindex="0"
+                          title="Supprimer"
+                          aria-label="Supprimer"
+                          @click="removeWiki(wiki.id)"
+                          @keydown.enter.prevent="removeWiki(wiki.id)"
+                          @keydown.space.prevent="removeWiki(wiki.id)"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                              d="M6 7h12l-1 13a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7zm3-3h6l1 2H8l1-2zm2 6v8h2v-8h-2zm-4 0v8h2v-8H7zm8 0v8h2v-8h-2z"
+                            />
+                          </svg>
+                        </span>
+                      </td>
+                    </tr>
+                    <tr v-if="group.items.length === 0">
+                      <td colspan="2" class="empty-row">Deposez un wiki ici.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <a
-              class="preview-link"
-              :href="selectedWiki.url"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Ouvrir dans un nouvel onglet
-            </a>
-          </div>
-          <iframe
-            class="preview-frame"
-            :src="selectedWiki.url"
-            title="Apercu wiki"
-            loading="lazy"
-          ></iframe>
         </div>
       </div>
     </div>
@@ -214,6 +178,7 @@
 
 <script setup>
 import { ref, onMounted, watch, computed } from "vue";
+import api from "../services/api";
 
 const STORAGE_KEY = "wiki-items";
 const GROUP_STORAGE_KEY = "wiki-groups";
@@ -223,8 +188,6 @@ const groups = ref([]);
 const error = ref("");
 const groupError = ref("");
 const editingId = ref(null);
-const selectedWiki = ref(null);
-const showPreview = ref(true);
 
 const form = ref({
   groupId: "",
@@ -414,16 +377,20 @@ const saveGroup = () => {
   resetGroupForm();
 };
 
-const saveWiki = () => {
+const fetchPageTitle = async (url) => {
+  try {
+    const res = await api.get("/metadata", { params: { url } });
+    return res.data?.title || "";
+  } catch {
+    return "";
+  }
+};
+
+const saveWiki = async () => {
   error.value = "";
-  const name = (form.value.name || "").trim();
+  let name = (form.value.name || "").trim();
   let url = normalizeUrl(form.value.url);
   const groupId = form.value.groupId || null;
-
-  if (!name) {
-    error.value = "Veuillez renseigner le nom du wiki.";
-    return;
-  }
 
   if (!url) {
     error.value = "Veuillez renseigner le lien du wiki.";
@@ -432,6 +399,19 @@ const saveWiki = () => {
 
   if (!/^https?:\/\//i.test(url)) {
     url = `https://${url}`;
+  }
+
+  if (!name) {
+    const title = await fetchPageTitle(url);
+    if (title) {
+      name = title;
+    } else {
+      try {
+        name = new URL(url).hostname.replace(/^www\./, "");
+      } catch {
+        name = url;
+      }
+    }
   }
 
   if (editingId.value) {
@@ -479,9 +459,6 @@ const removeWiki = (id) => {
   if (editingId.value === id) {
     resetForm();
   }
-  if (selectedWiki.value?.id === id) {
-    selectedWiki.value = null;
-  }
 };
 
 const removeGroup = (groupId) => {
@@ -517,17 +494,12 @@ const handleDrop = (event, groupId) => {
     };
   });
 };
-
-const setPreview = (wiki) => {
-  if (!showPreview.value) return;
-  selectedWiki.value = wiki;
-};
 </script>
 
 <style scoped>
 .page {
   padding: 24px;
-  background: radial-gradient(circle at top left, #f8fafc 0%, #ffffff 55%, #f1f5f9 100%);
+  background: #ffffff;
   min-height: 100vh;
 }
 
@@ -608,25 +580,6 @@ const setPreview = (wiki) => {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-}
-
-.list-controls {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #475569;
-  font-weight: 600;
-}
-
-.toggle input {
-  accent-color: #0f2742;
 }
 
 .field {
@@ -735,6 +688,12 @@ const setPreview = (wiki) => {
   overflow-x: auto;
 }
 
+.wiki-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .group-block {
   margin-top: 16px;
   border: 1px dashed #cbd5e1;
@@ -815,10 +774,17 @@ const setPreview = (wiki) => {
   color: #0f172a;
 }
 
+.open-link {
+  color: #0f2742;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .actions-cell {
   display: flex;
   gap: 6px;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .icon-action {
@@ -858,54 +824,6 @@ const setPreview = (wiki) => {
   padding: 16px 8px;
 }
 
-.preview-card {
-  margin-top: 18px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 14px;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
-}
-
-.preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.preview-title {
-  margin: 0;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #64748b;
-  font-weight: 700;
-}
-
-.preview-name {
-  margin: 4px 0 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.preview-link {
-  font-size: 12px;
-  font-weight: 700;
-  color: #0f2742;
-  text-decoration: none;
-}
-
-.preview-frame {
-  width: 100%;
-  height: 520px;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #ffffff;
-}
-
 @media (max-width: 1024px) {
   .layout {
     grid-template-columns: 1fr;
@@ -914,5 +832,6 @@ const setPreview = (wiki) => {
   .form-grid {
     grid-template-columns: 1fr;
   }
+
 }
 </style>

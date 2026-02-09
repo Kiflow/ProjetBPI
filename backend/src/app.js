@@ -5,6 +5,7 @@ const authRoutes = require("./routes/auth.routes");
 const employeeRoutes = require("./routes/employees.routes");
 const ticketRoutes = require("./routes/tickets.routes");
 const facturationRoutes = require("./routes/facturation.routes");
+const metadataRoutes = require("./routes/metadata.routes");
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/facturation", facturationRoutes);
+app.use("/api/metadata", metadataRoutes);
 
 app.listen(3001, () => {
   console.log("Backend running on http://localhost:3001");
