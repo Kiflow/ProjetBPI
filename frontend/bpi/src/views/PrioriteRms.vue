@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="page">
     <p class="hint">
-      Recherche du mot RMS dans la colonne ID externe et extraction des dates.
+      <!--Recherche du mot RMS dans la colonne ID externe et extraction des dates.-->
     </p>
 
     <div class="filters-row">

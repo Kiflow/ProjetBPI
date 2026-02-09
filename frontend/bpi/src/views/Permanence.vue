@@ -1,8 +1,8 @@
-<template>
+﻿<template>
   <div class="page">
     <div class="page-header">
       <div>
-        <p class="subtitle">Planifiez vos permanences et celles de l'equipe.</p>
+       <!-- <p class="subtitle">Planifiez vos permanences et celles de l'equipe.</p>-->
       </div>
       <div class="scope-toggle" role="group" aria-label="Filtre des permanences">
         <button

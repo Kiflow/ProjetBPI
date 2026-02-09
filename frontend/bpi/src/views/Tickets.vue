@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="tickets">
     <p class="hint">
-      Données lues depuis le fichier chargé dans le dashboard.
+      <!--Données lues depuis le fichier chargé dans le dashboard.-->
     </p>
 
     <p v-if="!tickets.length" class="empty">
