@@ -103,6 +103,9 @@
           </svg>
         </button>
         <div v-if="isUtilityOpen" class="nav-submenu">
+          <router-link to="/utilitaire-todo" class="nav-item sub-item">
+            <span>To-do cockpit</span>
+          </router-link>
           <router-link to="/facturation" class="nav-item sub-item">
             <span>Facturation</span>
           </router-link>

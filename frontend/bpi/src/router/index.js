@@ -10,6 +10,7 @@ import ClientPlanAction from "../views/ClientPlanAction.vue";
 import ClientSensible from "../views/ClientSensible.vue";
 import Facturation from "../views/Facturation.vue";
 import Wiki from "../views/Wiki.vue";
+import UtilitaireTodo from "../views/UtilitaireTodo.vue";
 
 const routes = [
   { path: "/login", component: Login },
@@ -54,6 +55,11 @@ const routes = [
     path: "/wiki",
     component: Wiki,
     meta: { requiresAuth: true, title: "Mes wikis" }
+  },
+  {
+    path: "/utilitaire-todo",
+    component: UtilitaireTodo,
+    meta: { requiresAuth: true, title: "To-do cockpit" }
   }
 ];
 

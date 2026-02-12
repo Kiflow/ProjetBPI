@@ -128,6 +128,8 @@ const pageTitle = computed(() => {
       return "Facturation";
     case "/wiki":
       return "Mes wikis";
+    case "/utilitaire-todo":
+      return "To-do cockpit";
     default:
       return "Page";
   }
