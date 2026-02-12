@@ -7,8 +7,7 @@
             <p class="hero-eyebrow">Utilitaire</p>
             <h1>Mes wikis</h1>
             <p class="hero-subtitle">
-              Un espace clair, vivant et actionnable pour piloter vos liens,
-              prioriser vite, et garder le cap.
+              Un espace organisé et intuitif pour centraliser vos liens, wiki et raccourcis internes .
             </p>
           </div>
           <div class="hero-stats">
