@@ -6,8 +6,7 @@ import CentralisationDemande from "../views/CentralisationDemande.vue";
 import PrioriteRms from "../views/PrioriteRms.vue";
 import Habilitation from "../views/Habilitation.vue";
 import Permanence from "../views/Permanence.vue";
-import ClientPlanAction from "../views/ClientPlanAction.vue";
-import ClientSensible from "../views/ClientSensible.vue";
+import SuiviClient from "../views/SuiviClient.vue";
 import Facturation from "../views/Facturation.vue";
 import Wiki from "../views/Wiki.vue";
 import UtilitaireTodo from "../views/UtilitaireTodo.vue";
@@ -37,13 +36,18 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: "/suivi-client",
+    component: SuiviClient,
+    meta: { requiresAuth: true, title: "Suivi client" }
+  },
+  {
     path: "/client-plan-action",
-    component: ClientPlanAction,
+    redirect: "/suivi-client",
     meta: { requiresAuth: true }
   },
   {
     path: "/client-sensible",
-    component: ClientSensible,
+    redirect: "/suivi-client",
     meta: { requiresAuth: true }
   },
   {

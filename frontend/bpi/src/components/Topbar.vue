@@ -118,10 +118,8 @@ const pageTitle = computed(() => {
       return "Habilitation";
     case "/permanence":
       return "Permanence";
-    case "/client-plan-action":
-      return "Client en plan d'action";
-    case "/client-sensible":
-      return "Client sensible";
+    case "/suivi-client":
+      return "Suivi client";
     case "/upload":
       return "Upload Excel";
     case "/facturation":
