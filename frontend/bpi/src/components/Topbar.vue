@@ -145,13 +145,13 @@ const closeProfile = () => {
 <style scoped>
 .topbar {
   position: relative;
-  height: 68px;
+  height: 56px;
   background: linear-gradient(90deg, #0f2742 0%, #143a63 55%, #0f2742 100%);
   color: #f8fafc;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 24px;
+  padding: 0 18px;
   font-family: Inter, sans-serif;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -159,7 +159,7 @@ const closeProfile = () => {
 }
 
 .title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.2px;
 }
@@ -167,12 +167,13 @@ const closeProfile = () => {
 .user-info {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
+  font-size: 14px;
 }
 
 .icon-button {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: transparent;
@@ -185,8 +186,8 @@ const closeProfile = () => {
 }
 
 .icon-button svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .icon-button:hover {
@@ -204,7 +205,7 @@ const closeProfile = () => {
 .profile-panel {
   position: absolute;
   right: 24px;
-  top: 78px;
+  top: 64px;
   width: 360px;
   background: #ffffff;
   color: #0f172a;

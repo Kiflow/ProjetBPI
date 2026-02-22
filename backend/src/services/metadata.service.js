@@ -25,7 +25,7 @@ const requestUrl = (url, redirectCount = 0) =>
       url,
       {
         headers: {
-          "User-Agent": "BPI-Metadata/1.0",
+          "User-Agent": "ADP-Vision-Metadata/1.0",
           Accept: "text/html,application/xhtml+xml"
         },
         timeout: 8000

@@ -80,7 +80,7 @@ router.beforeEach((to, from, next) => {
 });
 
 router.afterEach((to) => {
-  const baseTitle = "BPI";
+  const baseTitle = "ADP Vision";
   const pageTitle = to.meta?.title ? `${to.meta.title} | ${baseTitle}` : baseTitle;
   document.title = pageTitle;
 });

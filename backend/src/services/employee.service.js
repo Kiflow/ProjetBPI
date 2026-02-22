@@ -140,10 +140,26 @@ const loadEmployees = () => {
 const normalizeValue = (value) => (value || "").trim();
 
 const findByUserId = (userId) => {
-  const normalized = normalizeValue(userId);
+  const normalized = normalizeValue(userId).toLowerCase();
   const employees = loadEmployees();
   return employees.find(
-    (employee) => employee.userId && normalizeValue(employee.userId) === normalized
+    (employee) =>
+      employee.userId &&
+      normalizeValue(employee.userId).toLowerCase() === normalized
+  );
+};
+
+const findByEmail = (email) => {
+  const normalized = normalizeValue(email).toLowerCase();
+  if (!normalized) return null;
+
+  const employees = loadEmployees();
+  return (
+    employees.find(
+      (employee) =>
+        employee.email &&
+        normalizeValue(employee.email).toLowerCase() === normalized
+    ) || null
   );
 };
 
@@ -159,5 +175,6 @@ const findByGroup = (groupName) => {
 module.exports = {
   loadEmployees,
   findByUserId,
+  findByEmail,
   findByGroup
 };

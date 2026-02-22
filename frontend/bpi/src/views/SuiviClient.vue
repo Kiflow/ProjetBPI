@@ -25,30 +25,6 @@
             <option value="without">Sans ticket</option>
           </select>
         </label>
-
-        <label class="field">
-          <span>Date d'ajout</span>
-          <input v-model="filterAddedDate" type="date" />
-        </label>
-      </div>
-
-      <div class="view-toggle">
-        <button
-          type="button"
-          class="toggle-btn"
-          :class="{ active: viewMode === 'compact' }"
-          @click="viewMode = 'compact'"
-        >
-          Vue compacte
-        </button>
-        <button
-          type="button"
-          class="toggle-btn"
-          :class="{ active: viewMode === 'detailed' }"
-          @click="viewMode = 'detailed'"
-        >
-          Vue detaillee
-        </button>
       </div>
     </section>
 
@@ -90,14 +66,62 @@
               <div>
                 <h4>{{ entry.client.name }}</h4>
                 <p class="meta">
-                  PAC {{ entry.client.pac }}
-                  <span v-if="entry.client.bu">| BU {{ entry.client.bu }}</span>
-                  <span v-if="entry.addedAt">| Ajoute le {{ formatDate(entry.addedAt) }}</span>
+                  PAC: {{ entry.client.pac }}
+                  <span v-if="entry.client.bu">| BU: {{ entry.client.bu }}</span>
                 </p>
+                <p v-if="entry.addedAt" class="meta meta-added">Ajoute le {{ formatDateOnly(entry.addedAt) }}</p>
               </div>
-              <span class="status-chip" :class="`status-${entry.status}`">
-                {{ statusLabel(entry.status) }}
-              </span>
+              <div class="card-actions">
+                <button type="button" class="ghost card-action-btn" @click="openClientDetails(entry, 'timeline')">
+                  <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 8v5l3 2m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  Historique
+                </button>
+                <button
+                  type="button"
+                  class="ghost card-action-btn icon-only"
+                  aria-label="Modifier"
+                  title="Modifier"
+                  @click="openEditModal(entry)"
+                >
+                  <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="m4 20 4.2-1 9.1-9.1a2 2 0 0 0 0-2.8l-.4-.4a2 2 0 0 0-2.8 0L5 15.8 4 20Z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="danger card-action-btn icon-only"
+                  aria-label="Supprimer"
+                  title="Supprimer"
+                  @click="removeClient(entry.id)"
+                >
+                  <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M4 7h16M10 11v6m4-6v6M8 7l1-2h6l1 2m-9 0 1 12h8l1-12"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div class="client-stats">
@@ -115,35 +139,6 @@
               </button>
             </div>
 
-            <div class="card-actions">
-              <button type="button" class="ghost" @click="openClientDetails(entry, 'timeline')">Voir</button>
-              <button type="button" class="ghost" @click="openEditModal(entry)">Modifier</button>
-              <button type="button" class="danger" @click="removeClient(entry.id)">Supprimer</button>
-            </div>
-
-            <div v-if="viewMode === 'detailed'" class="timeline">
-              <div class="timeline-row">
-                <span class="dot" />
-                <div>
-                  <strong>Date d'ajout</strong>
-                  <p>{{ entry.addedAt ? formatDate(entry.addedAt) : "Non ajoute via suivi" }}</p>
-                </div>
-              </div>
-              <div class="timeline-row">
-                <span class="dot" />
-                <div>
-                  <strong>Tickets ouverts</strong>
-                  <p>{{ getOpenTickets(entry.client.pac).length }}</p>
-                </div>
-              </div>
-              <div class="timeline-row">
-                <span class="dot" />
-                <div>
-                  <strong>Passages de statut</strong>
-                  <p>{{ entry.statusHistory.length }}</p>
-                </div>
-              </div>
-            </div>
           </div>
         </article>
 
@@ -156,37 +151,13 @@
             PAC {{ selectedDetailEntry.client.pac }}
             <span v-if="selectedDetailEntry.client.bu">| BU {{ selectedDetailEntry.client.bu }}</span>
           </p>
-          <p v-else class="empty">Cliquez sur Voir ou commentaires pour afficher les details.</p>
+          <p v-else class="empty">Cliquez sur Historique ou commentaires pour afficher les details.</p>
 
           <template v-if="selectedDetailEntry">
-            <section class="drawer-section" :class="{ focused: detailSection === 'timeline' }">
-              <h4>Timeline</h4>
-              <div class="timeline">
-                <div class="timeline-row">
-                  <span class="dot" />
-                  <div>
-                    <strong>Date d'ajout</strong>
-                    <p>{{ selectedDetailEntry.addedAt ? formatDate(selectedDetailEntry.addedAt) : "-" }}</p>
-                  </div>
-                </div>
-                <div class="timeline-row">
-                  <span class="dot" />
-                  <div>
-                    <strong>Tickets ouverts</strong>
-                    <p>{{ getOpenTickets(selectedDetailEntry.client.pac).length }}</p>
-                  </div>
-                </div>
-                <div class="timeline-row" v-for="history in selectedDetailEntry.statusHistory" :key="history.id">
-                  <span class="dot" />
-                  <div>
-                    <strong>Statut: {{ statusLabel(history.status) }}</strong>
-                    <p>{{ formatDate(history.at) }}</p>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section class="drawer-section" :class="{ focused: detailSection === 'comments' }">
+            <section
+              v-if="detailSection === 'comments'"
+              class="drawer-section"
+            >
               <h4>Commentaires ({{ selectedDetailEntry.comments.length }})</h4>
               <ul v-if="selectedDetailEntry.comments.length" class="comment-list">
                 <li v-for="comment in selectedDetailEntry.comments" :key="comment.id">
@@ -201,6 +172,40 @@
                 <textarea v-model="detailComment" rows="3" placeholder="Nouveau commentaire..." />
               </label>
               <button class="primary" type="button" @click="addCommentFromDetails">Ajouter</button>
+            </section>
+
+            <section
+              v-else-if="detailSection === 'timeline'"
+              class="drawer-section"
+            >
+              <h4>Historique</h4>
+              <div class="timeline">
+                <p v-if="selectedTimelineEvents.length === 0" class="empty-mini">Aucun evenement.</p>
+                <div v-else class="timeline-table-wrap">
+                  <table class="timeline-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Changement</th>
+                        <th>Action</th>
+                        <th>Ancienne valeur</th>
+                        <th>Nouvelle valeur</th>
+                        <th>Auteur</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="event in selectedTimelineEvents" :key="event.id">
+                        <td>{{ formatTimelineDate(event.at) }}</td>
+                        <td>{{ event.kind }}</td>
+                        <td>{{ event.action }}</td>
+                        <td>{{ event.previousStatus }}</td>
+                        <td>{{ event.nextStatus || "-" }}</td>
+                        <td>{{ event.by }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </section>
           </template>
         </aside>
@@ -285,13 +290,10 @@ const tickets = ref([]);
 
 const filterQuery = ref("");
 const filterTickets = ref("all");
-const filterAddedDate = ref("");
-const viewMode = ref("compact");
 const boardStatus = ref("sensible");
 
 const isModalOpen = ref(false);
 const modalMode = ref("create");
-const editingId = ref(null);
 const selectedPac = ref("");
 const selectedCategory = ref("sensible");
 const initialComment = ref("");
@@ -322,6 +324,119 @@ const formatDate = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString("fr-FR");
+};
+
+const formatDateOnly = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("fr-FR");
+};
+
+const getCurrentActor = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem("user") || "{}");
+    const fullName = `${raw.firstName || ""} ${raw.lastName || ""}`.trim();
+    if (fullName) return fullName;
+    return raw.userId || "Systeme";
+  } catch {
+    return "Systeme";
+  }
+};
+
+const toTimestamp = (value) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+};
+
+const formatTimelineDate = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+};
+
+const timelineEvents = (entry) => {
+  if (!entry) return [];
+  const rawEvents = [];
+  const typeOrder = { added: 0, status: 1, comment: 2 };
+
+  if (entry.addedAt) {
+    rawEvents.push({
+      id: `${entry.id}-added`,
+      type: "added",
+      at: entry.addedAt,
+      by: entry.createdBy || "Systeme"
+    });
+  }
+
+  const history = Array.isArray(entry.statusHistory) ? entry.statusHistory : [];
+  history.forEach((item) => {
+    if (!item?.at) return;
+    rawEvents.push({
+      id: item.id || `${entry.id}-status-${item.at}`,
+      type: "status",
+      at: item.at,
+      status: item.status,
+      by: item.by || "Systeme"
+    });
+  });
+
+  const comments = Array.isArray(entry.comments) ? entry.comments : [];
+  comments.forEach((comment) => {
+    if (!comment?.createdAt) return;
+    rawEvents.push({
+      id: comment.id || `${entry.id}-comment-${comment.createdAt}`,
+      type: "comment",
+      at: comment.createdAt,
+      text: comment.text || "",
+      by: comment.by || "Systeme"
+    });
+  });
+
+  rawEvents.sort((a, b) => {
+    const timeDiff = toTimestamp(a.at) - toTimestamp(b.at);
+    if (timeDiff !== 0) return timeDiff;
+    return (typeOrder[a.type] || 99) - (typeOrder[b.type] || 99);
+  });
+
+  let currentStatus = "";
+  return rawEvents.map((event) => {
+    if (event.type === "added") {
+      currentStatus = entry.status || currentStatus;
+      return {
+        ...event,
+        kind: "Action",
+        action: "Ajout client",
+        previousStatus: "-",
+        nextStatus: currentStatus ? statusLabel(currentStatus) : "-"
+      };
+    }
+
+    if (event.type === "status") {
+      const previousStatus = currentStatus ? statusLabel(currentStatus) : "-";
+      currentStatus = event.status || currentStatus;
+      return {
+        ...event,
+        kind: "Changement",
+        action: "Mise a jour du statut",
+        previousStatus,
+        nextStatus: currentStatus ? statusLabel(currentStatus) : "-"
+      };
+    }
+
+    return {
+      ...event,
+      kind: "Commentaire",
+      action: event.text ? `Ajout commentaire: ${event.text}` : "Ajout commentaire",
+      previousStatus: currentStatus ? statusLabel(currentStatus) : "-",
+      nextStatus: ""
+    };
+  });
 };
 
 const isOpenStatus = (status) => {
@@ -377,17 +492,7 @@ const filteredEntries = computed(() => {
       (filterTickets.value === "with" && ticketCount > 0) ||
       (filterTickets.value === "without" && ticketCount === 0);
 
-    let dateMatch = true;
-    if (filterAddedDate.value) {
-      if (!entry.addedAt) {
-        dateMatch = false;
-      } else {
-        const day = new Date(entry.addedAt).toISOString().slice(0, 10);
-        dateMatch = day === filterAddedDate.value;
-      }
-    }
-
-    return textMatch && ticketMatch && dateMatch;
+    return textMatch && ticketMatch;
   });
 });
 
@@ -396,6 +501,7 @@ const boardEntries = computed(() => filteredEntries.value.filter((entry) => entr
 const selectedDetailEntry = computed(() =>
   mergedEntries.value.find((entry) => entry.id === selectedDetailId.value) || null
 );
+const selectedTimelineEvents = computed(() => timelineEvents(selectedDetailEntry.value));
 
 const filteredClients = computed(() => {
   const q = normalize(clientQuery.value);
@@ -435,13 +541,15 @@ const restoreTracked = () => {
     trackedEntries.value = merged.map((entry) => ({
       id: entry.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       addedAt: entry.addedAt || new Date().toISOString(),
+      createdBy: "Migration",
       status: entry.status,
       comments: entry.comment
         ? [
             {
               id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
               text: entry.comment,
-              createdAt: entry.addedAt || new Date().toISOString()
+              createdAt: entry.addedAt || new Date().toISOString(),
+              by: "Migration"
             }
           ]
         : [],
@@ -449,7 +557,8 @@ const restoreTracked = () => {
         {
           id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           status: entry.status,
-          at: entry.addedAt || new Date().toISOString()
+          at: entry.addedAt || new Date().toISOString(),
+          by: "Migration"
         }
       ],
       client: {
@@ -493,7 +602,6 @@ const selectClient = (client) => {
 };
 
 const resetModalForm = () => {
-  editingId.value = null;
   selectedPac.value = "";
   selectedCategory.value = "sensible";
   initialComment.value = "";
@@ -511,7 +619,6 @@ const openAddModal = () => {
 const openEditModal = (entry) => {
   modalMode.value = "edit";
   isModalOpen.value = true;
-  editingId.value = entry.id;
   selectedPac.value = entry.client.pac;
   selectedCategory.value = entry.status;
   initialComment.value = "";
@@ -528,6 +635,7 @@ const closeModal = () => {
 const upsertTrackedEntry = ({ pac, status, commentText }) => {
   const sourceClient = clients.value.find((client) => client.pac === pac);
   if (!sourceClient) return "";
+  const actor = getCurrentActor();
 
   const existing = trackedEntries.value.find((entry) => entry.client.pac === pac);
   if (!existing) {
@@ -535,13 +643,15 @@ const upsertTrackedEntry = ({ pac, status, commentText }) => {
     trackedEntries.value.unshift({
       id,
       addedAt: new Date().toISOString(),
+      createdBy: actor,
       status,
       comments: commentText
         ? [
             {
               id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
               text: commentText,
-              createdAt: new Date().toISOString()
+              createdAt: new Date().toISOString(),
+              by: actor
             }
           ]
         : [],
@@ -549,7 +659,8 @@ const upsertTrackedEntry = ({ pac, status, commentText }) => {
         {
           id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           status,
-          at: new Date().toISOString()
+          at: new Date().toISOString(),
+          by: actor
         }
       ],
       client: {
@@ -570,7 +681,8 @@ const upsertTrackedEntry = ({ pac, status, commentText }) => {
       nextComments.push({
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         text: commentText,
-        createdAt: now
+        createdAt: now,
+        by: actor
       });
     }
 
@@ -579,7 +691,8 @@ const upsertTrackedEntry = ({ pac, status, commentText }) => {
       nextHistory.push({
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         status,
-        at: now
+        at: now,
+        by: actor
       });
     }
 
@@ -722,7 +835,7 @@ h1 {
 .card {
   background: #f8fafc;
   border: 1px solid #dbe6f3;
-  border-radius: 12px;
+  border-radius: 8px;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
@@ -733,7 +846,7 @@ h1 {
 
 .filters {
   display: grid;
-  grid-template-columns: 1.5fr repeat(2, minmax(160px, 1fr));
+  grid-template-columns: 1.5fr minmax(160px, 1fr);
   gap: 10px;
 }
 
@@ -752,28 +865,6 @@ h1 {
   border-radius: 10px;
   padding: 8px 10px;
   background: #ffffff;
-}
-
-.view-toggle {
-  margin-top: 10px;
-  display: inline-flex;
-  gap: 8px;
-}
-
-.toggle-btn {
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #0f172a;
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.toggle-btn.active {
-  background: #0f2742;
-  border-color: #0f2742;
-  color: #ffffff;
 }
 
 .kanban {
@@ -823,7 +914,7 @@ h1 {
   padding: 10px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .column-head {
@@ -853,7 +944,7 @@ h1 {
 
 .client-card {
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 10px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 6px 12px rgba(15, 23, 42, 0.06);
@@ -861,11 +952,11 @@ h1 {
 }
 
 .client-card.status-sensible {
-  border-left: 4px solid #dc2626;
+  border-left: 4px solid #0f2742;
 }
 
 .client-card.status-plan {
-  border-left: 4px solid #d97706;
+  border-left: 4px solid #0f2742;
 }
 
 .client-main {
@@ -887,22 +978,8 @@ h1 {
   color: #64748b;
 }
 
-.status-chip {
-  border-radius: 999px;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.status-chip.status-sensible {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.status-chip.status-plan {
-  background: #ffedd5;
-  color: #9a3412;
+.meta-added {
+  margin-top: 2px;
 }
 
 .client-stats {
@@ -942,9 +1019,39 @@ h1 {
 }
 
 .card-actions {
-  margin-top: 8px;
+  margin-top: 6px;
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.client-main .card-actions {
+  margin-top: 0;
+  justify-content: flex-end;
+}
+
+.card-actions .card-action-btn {
+  padding: 5px 8px;
+  font-size: 11px;
+  line-height: 1.1;
+  border-radius: 7px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.card-actions .card-action-btn.icon-only {
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  justify-content: center;
+}
+
+.card-actions .btn-icon {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
 }
 
 .primary,
@@ -976,29 +1083,53 @@ h1 {
 
 .timeline {
   margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
-.timeline-row {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
+.timeline-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #dbe6f3;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
-.timeline-row p {
-  margin: 2px 0 0;
-  color: #475569;
+.timeline-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
   font-size: 12px;
 }
 
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #0f2742;
-  margin-top: 6px;
+.timeline-table th,
+.timeline-table td {
+  padding: 7px 8px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.timeline-table thead th {
+  background: #f8fafc;
+  color: #0f2742;
+  font-weight: 800;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.timeline-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.timeline-table td:first-child {
+  color: #0f2742;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.timeline-table td:nth-child(3) {
+  color: #0f172a;
+  font-weight: 600;
 }
 
 .empty {
@@ -1118,7 +1249,7 @@ h1 {
 .details-panel {
   padding: 10px;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #ffffff;
 }
 
@@ -1135,14 +1266,9 @@ h1 {
 .drawer-section {
   margin-top: 12px;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #f8fafc;
   padding: 10px;
-}
-
-.drawer-section.focused {
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 1px #bfdbfe;
 }
 
 .drawer-section h4 {
@@ -1160,7 +1286,7 @@ h1 {
 
 .comment-list li {
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #ffffff;
   padding: 8px;
 }

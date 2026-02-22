@@ -31,6 +31,10 @@
         </button>
       </form>
 
+      <button class="microsoft-btn" type="button" @click="loginWithMicrosoft">
+        Se connecter avec Microsoft
+      </button>
+
       <div class="footer">
         <small>Acces reserve aux collaborateurs ADP</small>
       </div>
@@ -39,7 +43,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import api from "../services/api";
 
@@ -48,6 +52,20 @@ const router = useRouter();
 const userId = ref("");
 const password = ref("");
 const loading = ref(false);
+
+const decodeBase64Url = (input) => {
+  const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  return atob(base64 + padding);
+};
+
+const getBackendOrigin = () =>
+  api.defaults.baseURL.replace(/\/api\/?$/, "");
+
+const loginWithMicrosoft = () => {
+  const backendOrigin = getBackendOrigin();
+  window.location.href = `${backendOrigin}/api/auth/microsoft/start`;
+};
 
 const login = async () => {
   try {
@@ -72,6 +90,34 @@ const login = async () => {
     loading.value = false;
   }
 };
+
+onMounted(() => {
+  const search = new URLSearchParams(window.location.search);
+  const token = search.get("token");
+  const encodedUser = search.get("user");
+  const error = search.get("error");
+
+  if (error) {
+    console.error("[login][microsoft] erreur:", error);
+    alert("Connexion Microsoft impossible. Contactez l'administrateur.");
+    window.history.replaceState({}, "", "/login");
+    return;
+  }
+
+  if (!token || !encodedUser) return;
+
+  try {
+    const parsedUser = JSON.parse(decodeBase64Url(encodedUser));
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(parsedUser));
+    window.dispatchEvent(new Event("auth-changed"));
+    window.history.replaceState({}, "", "/login");
+    router.push("/");
+  } catch (e) {
+    console.error("[login][microsoft] parsing user échoué:", e);
+    alert("Retour Microsoft invalide.");
+  }
+});
 </script>
 
 <style scoped>
@@ -151,6 +197,15 @@ button:hover {
 button:disabled {
   background-color: #b3d4ff;
   cursor: not-allowed;
+}
+
+.microsoft-btn {
+  margin-top: 12px;
+  background-color: #2f2f2f;
+}
+
+.microsoft-btn:hover {
+  background-color: #1f1f1f;
 }
 
 .footer {
