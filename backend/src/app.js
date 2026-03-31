@@ -9,6 +9,10 @@ const ticketRoutes = require("./routes/tickets.routes");
 const facturationRoutes = require("./routes/facturation.routes");
 const metadataRoutes = require("./routes/metadata.routes");
 const clientsRoutes = require("./routes/clients.routes");
+const wikiRoutes = require("./routes/wiki.routes");
+const todoRoutes = require("./routes/todo.routes");
+const permanenceRoutes = require("./routes/permanence.routes");
+const suiviRoutes = require("./routes/suivi.routes");
 
 const app = express();
 
@@ -21,6 +25,10 @@ app.use("/api/tickets", ticketRoutes);
 app.use("/api/facturation", facturationRoutes);
 app.use("/api/metadata", metadataRoutes);
 app.use("/api/clients", clientsRoutes);
+app.use("/api/wiki", wikiRoutes);
+app.use("/api/todo", todoRoutes);
+app.use("/api/permanences", permanenceRoutes);
+app.use("/api/suivi", suiviRoutes);
 
 app.listen(3001, () => {
   console.log("Backend running on http://localhost:3001");

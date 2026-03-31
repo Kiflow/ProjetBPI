@@ -295,12 +295,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from "vue";
+import { ref, onMounted, computed } from "vue";
 import api from "../services/api";
-
-const STORAGE_KEY = "wiki-items";
-const GROUP_STORAGE_KEY = "wiki-groups";
-const SHORTCUTS_KEY = "wiki-shortcuts";
 
 const wikis = ref([]);
 const groups = ref([]);
@@ -313,20 +309,9 @@ const openGroups = ref(new Set());
 const searchQuery = ref("");
 const actionMenuId = ref(null);
 
-const form = ref({
-  groupId: "",
-  name: "",
-  url: ""
-});
-
-const groupForm = ref({
-  name: ""
-});
-
-const shortcutForm = ref({
-  title: "",
-  url: ""
-});
+const form = ref({ groupId: "", name: "", url: "" });
+const groupForm = ref({ name: "" });
+const shortcutForm = ref({ title: "", url: "" });
 
 const isEditing = computed(() => editingId.value !== null);
 const DEFAULT_GROUP = "Sans groupe";
@@ -334,171 +319,57 @@ const DEFAULT_GROUP = "Sans groupe";
 const groupedWikis = computed(() => {
   const query = (searchQuery.value || "").trim().toLowerCase();
   const filteredWikis = query
-    ? wikis.value.filter((wiki) =>
-        (wiki.name || "").toLowerCase().includes(query)
-      )
+    ? wikis.value.filter((wiki) => (wiki.name || "").toLowerCase().includes(query))
     : wikis.value;
 
   const groupMap = new Map(
     groups.value.map((group) => [
       group.id,
-      {
-        key: group.id,
-        id: group.id,
-        label: group.name,
-        items: [],
-        canRemove: true
-      }
+      { key: group.id, id: group.id, label: group.name, items: [], canRemove: true }
     ])
   );
 
-  const ungrouped = {
-    key: "ungrouped",
-    id: null,
-    label: DEFAULT_GROUP,
-    items: [],
-    canRemove: false
-  };
+  const ungrouped = { key: "ungrouped", id: null, label: DEFAULT_GROUP, items: [], canRemove: false };
 
   filteredWikis.forEach((wiki) => {
-    const target =
-      wiki.groupId && groupMap.has(wiki.groupId)
-        ? groupMap.get(wiki.groupId)
-        : ungrouped;
+    const target = wiki.groupId && groupMap.has(wiki.groupId) ? groupMap.get(wiki.groupId) : ungrouped;
     target.items.push(wiki);
   });
 
   const sortedGroups = Array.from(groupMap.values())
-    .map((group) => ({
-      ...group,
-      items: group.items.slice().sort((a, b) => a.name.localeCompare(b.name))
-    }))
+    .map((group) => ({ ...group, items: group.items.slice().sort((a, b) => a.name.localeCompare(b.name)) }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   if (ungrouped.items.length > 0 || sortedGroups.length === 0) {
-    sortedGroups.push({
-      ...ungrouped,
-      items: ungrouped.items.slice().sort((a, b) => a.name.localeCompare(b.name))
-    });
+    sortedGroups.push({ ...ungrouped, items: ungrouped.items.slice().sort((a, b) => a.name.localeCompare(b.name)) });
   }
 
   return sortedGroups;
 });
 
-const loadGroups = () => {
-  const raw = localStorage.getItem(GROUP_STORAGE_KEY);
-  if (!raw) {
-    groups.value = [];
-    return;
-  }
+const loadAll = async () => {
   try {
-    groups.value = JSON.parse(raw) ?? [];
+    const [gRes, wRes, sRes] = await Promise.all([
+      api.get("/wiki/groups"),
+      api.get("/wiki/items"),
+      api.get("/wiki/shortcuts")
+    ]);
+    groups.value = gRes.data;
+    wikis.value = wRes.data;
+    shortcuts.value = sRes.data;
   } catch {
     groups.value = [];
-  }
-};
-
-const loadWikis = () => {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
     wikis.value = [];
-    return;
-  }
-  try {
-    wikis.value = JSON.parse(raw) ?? [];
-  } catch {
-    wikis.value = [];
-  }
-
-  migrateThemesToGroups();
-};
-
-const loadShortcuts = () => {
-  const raw = localStorage.getItem(SHORTCUTS_KEY);
-  if (!raw) {
-    shortcuts.value = [];
-    return;
-  }
-  try {
-    shortcuts.value = JSON.parse(raw) ?? [];
-  } catch {
     shortcuts.value = [];
   }
 };
 
-onMounted(() => {
-  loadGroups();
-  loadWikis();
-  loadShortcuts();
-});
+onMounted(loadAll);
 
-watch(
-  wikis,
-  (value) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  },
-  { deep: true }
-);
-
-watch(
-  groups,
-  (value) => {
-    localStorage.setItem(GROUP_STORAGE_KEY, JSON.stringify(value));
-  },
-  { deep: true }
-);
-
-watch(
-  shortcuts,
-  (value) => {
-    localStorage.setItem(SHORTCUTS_KEY, JSON.stringify(value));
-  },
-  { deep: true }
-);
-
-const migrateThemesToGroups = () => {
-  let updated = false;
-  const existingGroupByName = new Map(
-    groups.value.map((group) => [group.name.toLowerCase(), group])
-  );
-
-  const nextGroups = [...groups.value];
-  const nextWikis = wikis.value.map((wiki) => {
-    if (wiki.groupId || !wiki.theme) return wiki;
-    const themeName = String(wiki.theme).trim();
-    if (!themeName) return wiki;
-
-    const key = themeName.toLowerCase();
-    let group = existingGroupByName.get(key);
-    if (!group) {
-      group = {
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        name: themeName
-      };
-      existingGroupByName.set(key, group);
-      nextGroups.push(group);
-    }
-
-    updated = true;
-    const { theme, ...rest } = wiki;
-    return {
-      ...rest,
-      groupId: group.id
-    };
-  });
-
-  if (updated) {
-    groups.value = nextGroups;
-    wikis.value = nextWikis;
-  }
-};
+const newId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 const resetForm = () => {
-  form.value = {
-    groupId: "",
-    name: "",
-    url: ""
-  };
+  form.value = { groupId: "", name: "", url: "" };
   editingId.value = null;
   error.value = "";
 };
@@ -520,51 +391,45 @@ const getFaviconUrl = (url) => {
   }
 };
 
-const addShortcut = () => {
+const addShortcut = async () => {
   let title = (shortcutForm.value.title || "").trim();
   let url = normalizeUrl(shortcutForm.value.url);
   if (!title || !url) return;
-  if (!/^https?:\/\//i.test(url)) {
-    url = `https://${url}`;
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  const id = newId();
+  try {
+    await api.post("/wiki/shortcuts", { id, title, url });
+    shortcuts.value = [...shortcuts.value, { id, title, url }];
+    shortcutForm.value = { title: "", url: "" };
+  } catch {
+    // silently fail
   }
-  shortcuts.value = [
-    ...shortcuts.value,
-    {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      title,
-      url
-    }
-  ];
-  shortcutForm.value = { title: "", url: "" };
 };
 
-const removeShortcut = (id) => {
-  shortcuts.value = shortcuts.value.filter((shortcut) => shortcut.id !== id);
+const removeShortcut = async (id) => {
+  try {
+    await api.delete(`/wiki/shortcuts/${id}`);
+    shortcuts.value = shortcuts.value.filter((s) => s.id !== id);
+  } catch {
+    // silently fail
+  }
 };
 
-const saveGroup = () => {
+const saveGroup = async () => {
   groupError.value = "";
   const name = (groupForm.value.name || "").trim();
-  if (!name) {
-    groupError.value = "Veuillez renseigner un nom de groupe.";
-    return;
+  if (!name) { groupError.value = "Veuillez renseigner un nom de groupe."; return; }
+  const exists = groups.value.some((g) => g.name.toLowerCase() === name.toLowerCase());
+  if (exists) { groupError.value = "Ce groupe existe deja."; return; }
+  const id = newId();
+  try {
+    await api.post("/wiki/groups", { id, name });
+    groups.value = [...groups.value, { id, name }];
+    resetGroupForm();
+  } catch (e) {
+    console.error("[wiki] createGroup error:", e?.response?.status, e?.response?.data, e?.message);
+    groupError.value = "Erreur lors de la création du groupe.";
   }
-  const exists = groups.value.some(
-    (group) => group.name.toLowerCase() === name.toLowerCase()
-  );
-  if (exists) {
-    groupError.value = "Ce groupe existe deja.";
-    return;
-  }
-
-  groups.value = [
-    ...groups.value,
-    {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      name
-    }
-  ];
-  resetGroupForm();
 };
 
 const fetchPageTitle = async (url) => {
@@ -582,90 +447,64 @@ const saveWiki = async () => {
   let url = normalizeUrl(form.value.url);
   const groupId = form.value.groupId || null;
 
-  if (!url) {
-    error.value = "Veuillez renseigner le lien du wiki.";
-    return;
-  }
-
-  if (!/^https?:\/\//i.test(url)) {
-    url = `https://${url}`;
-  }
+  if (!url) { error.value = "Veuillez renseigner le lien du wiki."; return; }
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
 
   if (!name) {
     const title = await fetchPageTitle(url);
     if (title) {
       name = title;
     } else {
-      try {
-        name = new URL(url).hostname.replace(/^www\./, "");
-      } catch {
-        name = url;
-      }
+      try { name = new URL(url).hostname.replace(/^www\./, ""); } catch { name = url; }
     }
   }
 
-  if (editingId.value) {
-    wikis.value = wikis.value.map((wiki) => {
-      if (wiki.id !== editingId.value) return wiki;
-      return {
-        ...wiki,
-        name,
-        url,
-        groupId
-      };
-    });
-  } else {
-    wikis.value = [
-      ...wikis.value,
-      {
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        name,
-        url,
-        groupId
-      }
-    ];
+  try {
+    if (editingId.value) {
+      await api.put(`/wiki/items/${editingId.value}`, { name, url, groupId });
+      wikis.value = wikis.value.map((w) => w.id !== editingId.value ? w : { ...w, name, url, groupId });
+    } else {
+      const id = newId();
+      await api.post("/wiki/items", { id, name, url, groupId });
+      wikis.value = [...wikis.value, { id, name, url, groupId }];
+    }
+    resetForm();
+  } catch {
+    error.value = "Erreur lors de l'enregistrement.";
   }
-
-  resetForm();
 };
 
 const editWiki = (wiki) => {
-  form.value = {
-    groupId: wiki.groupId || "",
-    name: wiki.name || "",
-    url: wiki.url || ""
-  };
+  form.value = { groupId: wiki.groupId || "", name: wiki.name || "", url: wiki.url || "" };
   editingId.value = wiki.id;
 };
 
-const cancelEdit = () => {
-  resetForm();
-};
+const cancelEdit = () => resetForm();
 
-const removeWiki = (id) => {
+const removeWiki = async (id) => {
   const confirmRemove = window.confirm("Supprimer ce wiki ?");
   if (!confirmRemove) return;
-  wikis.value = wikis.value.filter((wiki) => wiki.id !== id);
-  if (editingId.value === id) {
-    resetForm();
+  try {
+    await api.delete(`/wiki/items/${id}`);
+    wikis.value = wikis.value.filter((w) => w.id !== id);
+    if (editingId.value === id) resetForm();
+  } catch {
+    // silently fail
   }
 };
 
-const removeGroup = (groupId) => {
-  const group = groups.value.find((item) => item.id === groupId);
+const removeGroup = async (groupId) => {
+  const group = groups.value.find((g) => g.id === groupId);
   if (!group) return;
-  const confirmRemove = window.confirm(
-    `Supprimer le groupe "${group.name}" ? Les wikis seront deplaces en "Sans groupe".`
-  );
+  const confirmRemove = window.confirm(`Supprimer le groupe "${group.name}" ? Les wikis seront deplaces en "Sans groupe".`);
   if (!confirmRemove) return;
-  groups.value = groups.value.filter((item) => item.id !== groupId);
-  wikis.value = wikis.value.map((wiki) => {
-    if (wiki.groupId !== groupId) return wiki;
-    return {
-      ...wiki,
-      groupId: null
-    };
-  });
+  try {
+    await api.delete(`/wiki/groups/${groupId}`);
+    groups.value = groups.value.filter((g) => g.id !== groupId);
+    wikis.value = wikis.value.map((w) => w.groupId !== groupId ? w : { ...w, groupId: null });
+  } catch {
+    // silently fail
+  }
 };
 
 const handleDragStart = (event, wikiId) => {
@@ -673,27 +512,24 @@ const handleDragStart = (event, wikiId) => {
   event.dataTransfer.effectAllowed = "move";
 };
 
-const handleDrop = (event, groupId) => {
+const handleDrop = async (event, groupId) => {
   const wikiId = event.dataTransfer.getData("text/wiki-id");
   if (!wikiId) return;
-  wikis.value = wikis.value.map((wiki) => {
-    if (wiki.id !== wikiId) return wiki;
-    return {
-      ...wiki,
-      groupId
-    };
-  });
+  const wiki = wikis.value.find((w) => w.id === wikiId);
+  if (!wiki) return;
+  try {
+    await api.put(`/wiki/items/${wikiId}`, { name: wiki.name, url: wiki.url, groupId });
+    wikis.value = wikis.value.map((w) => w.id !== wikiId ? w : { ...w, groupId });
+  } catch {
+    // silently fail
+  }
 };
 
 const isGroupOpen = (key) => openGroups.value.has(key);
 
 const toggleGroup = (key) => {
   const next = new Set(openGroups.value);
-  if (next.has(key)) {
-    next.delete(key);
-  } else {
-    next.add(key);
-  }
+  if (next.has(key)) { next.delete(key); } else { next.add(key); }
   openGroups.value = next;
 };
 

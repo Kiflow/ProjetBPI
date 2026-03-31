@@ -265,126 +265,119 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted } from "vue";
+import api from "../services/api";
 
-const STORAGE_KEY = "utilityTodoList";
-const SHORTCUTS_KEY = "utilityTodoShortcuts";
+const DEFAULT_SHORTCUTS = [
+  { id: "relance-client", title: "Relance client", note: "Appel + mail de suivi" },
+  { id: "point-equipe", title: "Point equipe", note: "Synthese 15 min" },
+  { id: "nettoyer-backlog", title: "Nettoyer backlog", note: "Revue tickets > 30j" }
+];
 
 const tasks = ref([]);
 const search = ref("");
 const hideDone = ref(false);
 const showShortcutEditor = ref(false);
 const shortcuts = ref([]);
-const draft = ref({
-  title: "",
-  note: "",
-  priority: "Moyenne",
-  due: ""
-});
-const shortcutDraft = ref({
-  title: "",
-  note: ""
-});
+const draft = ref({ title: "", note: "", priority: "Moyenne", due: "" });
+const shortcutDraft = ref({ title: "", note: "" });
 
-const load = () => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) return;
+const newId = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+
+const loadAll = async () => {
   try {
-    tasks.value = JSON.parse(stored);
+    const [tRes, sRes] = await Promise.all([
+      api.get("/todo/tasks"),
+      api.get("/todo/shortcuts")
+    ]);
+    tasks.value = tRes.data;
+    shortcuts.value = sRes.data.length ? sRes.data : DEFAULT_SHORTCUTS;
   } catch {
     tasks.value = [];
+    shortcuts.value = DEFAULT_SHORTCUTS;
   }
 };
 
-const loadShortcuts = () => {
-  const stored = localStorage.getItem(SHORTCUTS_KEY);
-  if (stored) {
-    try {
-      shortcuts.value = JSON.parse(stored);
-      return;
-    } catch {
-      shortcuts.value = [];
-    }
-  }
-  shortcuts.value = [
-    { id: "relance-client", title: "Relance client", note: "Appel + mail de suivi" },
-    { id: "point-equipe", title: "Point equipe", note: "Synthese 15 min" },
-    { id: "nettoyer-backlog", title: "Nettoyer backlog", note: "Revue tickets > 30j" }
-  ];
-};
+onMounted(loadAll);
 
-onMounted(load);
-onMounted(loadShortcuts);
-
-watch(
-  tasks,
-  (value) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  },
-  { deep: true }
-);
-
-watch(
-  shortcuts,
-  (value) => {
-    localStorage.setItem(SHORTCUTS_KEY, JSON.stringify(value));
-  },
-  { deep: true }
-);
-
-const addTask = () => {
+const addTask = async () => {
   if (!draft.value.title) return;
-  tasks.value.unshift({
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-    title: draft.value.title,
-    note: draft.value.note,
-    priority: draft.value.priority,
-    due: draft.value.due,
-    done: false,
-    createdAt: new Date().toISOString()
-  });
-  draft.value.title = "";
-  draft.value.note = "";
-  draft.value.due = "";
+  const id = newId();
+  const createdAt = new Date().toISOString();
+  const task = { id, title: draft.value.title, note: draft.value.note, priority: draft.value.priority, due: draft.value.due, done: false, createdAt };
+  try {
+    await api.post("/todo/tasks", task);
+    tasks.value.unshift(task);
+    draft.value.title = "";
+    draft.value.note = "";
+    draft.value.due = "";
+  } catch {
+    // silently fail
+  }
 };
 
-const addTemplate = (title, note) => {
-  tasks.value.unshift({
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-    title,
-    note,
-    priority: "Moyenne",
-    due: "",
-    done: false,
-    createdAt: new Date().toISOString()
-  });
+const addTemplate = async (title, note) => {
+  const id = newId();
+  const createdAt = new Date().toISOString();
+  const task = { id, title, note, priority: "Moyenne", due: "", done: false, createdAt };
+  try {
+    await api.post("/todo/tasks", task);
+    tasks.value.unshift(task);
+  } catch {
+    // silently fail
+  }
 };
 
-const addShortcut = () => {
+const addShortcut = async () => {
   if (!shortcutDraft.value.title) return;
-  shortcuts.value.push({
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-    title: shortcutDraft.value.title,
-    note: shortcutDraft.value.note
-  });
-  shortcutDraft.value.title = "";
-  shortcutDraft.value.note = "";
+  const id = newId();
+  const shortcut = { id, title: shortcutDraft.value.title, note: shortcutDraft.value.note };
+  try {
+    await api.post("/todo/shortcuts", shortcut);
+    shortcuts.value.push(shortcut);
+    shortcutDraft.value.title = "";
+    shortcutDraft.value.note = "";
+  } catch {
+    // silently fail
+  }
 };
 
-const removeShortcut = (id) => {
-  shortcuts.value = shortcuts.value.filter((shortcut) => shortcut.id !== id);
+const removeShortcut = async (id) => {
+  try {
+    await api.delete(`/todo/shortcuts/${id}`);
+    shortcuts.value = shortcuts.value.filter((s) => s.id !== id);
+  } catch {
+    // silently fail
+  }
 };
 
-const removeTask = (id) => {
-  tasks.value = tasks.value.filter((task) => task.id !== id);
+const removeTask = async (id) => {
+  try {
+    await api.delete(`/todo/tasks/${id}`);
+    tasks.value = tasks.value.filter((t) => t.id !== id);
+  } catch {
+    // silently fail
+  }
 };
 
-const toggleDone = (task) => {
-  task.done = !task.done;
+const toggleDone = async (task) => {
+  const next = !task.done;
+  try {
+    await api.put(`/todo/tasks/${task.id}`, { ...task, done: next });
+    task.done = next;
+  } catch {
+    // silently fail
+  }
 };
 
-const clearDone = () => {
-  tasks.value = tasks.value.filter((task) => !task.done);
+const clearDone = async () => {
+  const done = tasks.value.filter((t) => t.done);
+  try {
+    await Promise.all(done.map((t) => api.delete(`/todo/tasks/${t.id}`)));
+    tasks.value = tasks.value.filter((t) => !t.done);
+  } catch {
+    // silently fail
+  }
 };
 
 const formatDate = (value) => {

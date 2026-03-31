@@ -281,8 +281,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import api from "../services/api";
 
-const TRACKED_KEY = "suivi-client-tracked-v2";
-const LEGACY_KEY = "suivi-client-lists";
 
 const clients = ref([]);
 const trackedEntries = ref([]);
@@ -516,57 +514,10 @@ const filteredClients = computed(() => {
     .slice(0, 250);
 });
 
-const persistTracked = () => {
-  localStorage.setItem(TRACKED_KEY, JSON.stringify(trackedEntries.value));
-};
-
-const restoreTracked = () => {
+const restoreTracked = async () => {
   try {
-    const raw = JSON.parse(localStorage.getItem(TRACKED_KEY) || "[]");
-    if (Array.isArray(raw) && raw.length) {
-      trackedEntries.value = raw;
-      return;
-    }
-  } catch {
-    trackedEntries.value = [];
-  }
-
-  // Migration depuis l'ancien format.
-  try {
-    const old = JSON.parse(localStorage.getItem(LEGACY_KEY) || "{}");
-    const sensible = Array.isArray(old.sensibleList) ? old.sensibleList : [];
-    const plan = Array.isArray(old.planList) ? old.planList : [];
-    const merged = [...sensible.map((x) => ({ ...x, status: "sensible" })), ...plan.map((x) => ({ ...x, status: "plan" }))];
-
-    trackedEntries.value = merged.map((entry) => ({
-      id: entry.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      addedAt: entry.addedAt || new Date().toISOString(),
-      createdBy: "Migration",
-      status: entry.status,
-      comments: entry.comment
-        ? [
-            {
-              id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-              text: entry.comment,
-              createdAt: entry.addedAt || new Date().toISOString(),
-              by: "Migration"
-            }
-          ]
-        : [],
-      statusHistory: [
-        {
-          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          status: entry.status,
-          at: entry.addedAt || new Date().toISOString(),
-          by: "Migration"
-        }
-      ],
-      client: {
-        pac: entry.client?.pac || "",
-        name: entry.client?.name || "",
-        bu: entry.client?.bu || ""
-      }
-    }));
+    const res = await api.get("/suivi");
+    trackedEntries.value = res.data ?? [];
   } catch {
     trackedEntries.value = [];
   }
@@ -632,92 +583,48 @@ const closeModal = () => {
   resetModalForm();
 };
 
-const upsertTrackedEntry = ({ pac, status, commentText }) => {
+const upsertTrackedEntry = async ({ pac, status, commentText }) => {
   const sourceClient = clients.value.find((client) => client.pac === pac);
   if (!sourceClient) return "";
   const actor = getCurrentActor();
 
   const existing = trackedEntries.value.find((entry) => entry.client.pac === pac);
-  if (!existing) {
-    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    trackedEntries.value.unshift({
+  const id = existing ? existing.id : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const addedAt = existing ? existing.addedAt : new Date().toISOString();
+  const commentId = commentText ? `${Date.now()}-${Math.random().toString(16).slice(2)}` : null;
+  const historyId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  try {
+    const res = await api.post("/suivi", {
       id,
-      addedAt: new Date().toISOString(),
+      pac,
+      clientName: sourceClient.name,
+      clientBu: sourceClient.bu || "",
+      status,
+      addedAt,
       createdBy: actor,
-      status,
-      comments: commentText
-        ? [
-            {
-              id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-              text: commentText,
-              createdAt: new Date().toISOString(),
-              by: actor
-            }
-          ]
-        : [],
-      statusHistory: [
-        {
-          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          status,
-          at: new Date().toISOString(),
-          by: actor
-        }
-      ],
-      client: {
-        pac: sourceClient.pac,
-        name: sourceClient.name,
-        bu: sourceClient.bu || ""
-      }
+      comment: commentText || null,
+      commentId,
+      historyId
     });
+    if (existing) {
+      trackedEntries.value = trackedEntries.value.map((e) => e.id === id ? res.data : e);
+    } else {
+      trackedEntries.value.unshift(res.data);
+    }
     return id;
+  } catch {
+    return "";
   }
-
-  const now = new Date().toISOString();
-  trackedEntries.value = trackedEntries.value.map((entry) => {
-    if (entry.client.pac !== pac) return entry;
-
-    const nextComments = [...entry.comments];
-    if (commentText) {
-      nextComments.push({
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        text: commentText,
-        createdAt: now,
-        by: actor
-      });
-    }
-
-    const nextHistory = [...entry.statusHistory];
-    if (entry.status !== status) {
-      nextHistory.push({
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        status,
-        at: now,
-        by: actor
-      });
-    }
-
-    return {
-      ...entry,
-      status,
-      comments: nextComments,
-      statusHistory: nextHistory,
-      client: {
-        pac: sourceClient.pac,
-        name: sourceClient.name,
-        bu: sourceClient.bu || ""
-      }
-    };
-  });
-  return existing.id;
 };
 
-const submitModal = () => {
+const submitModal = async () => {
   errorMessage.value = "";
   if (!selectedPac.value) {
     errorMessage.value = "Selectionnez un client.";
     return;
   }
-  const updatedId = upsertTrackedEntry({
+  const updatedId = await upsertTrackedEntry({
     pac: selectedPac.value,
     status: selectedCategory.value,
     commentText: (initialComment.value || "").trim()
@@ -729,11 +636,16 @@ const submitModal = () => {
   closeModal();
 };
 
-const removeClient = (id) => {
-  trackedEntries.value = trackedEntries.value.filter((entry) => entry.id !== id);
-  if (selectedDetailId.value === id) {
-    selectedDetailId.value = null;
-    detailComment.value = "";
+const removeClient = async (id) => {
+  try {
+    await api.delete(`/suivi/${id}`);
+    trackedEntries.value = trackedEntries.value.filter((entry) => entry.id !== id);
+    if (selectedDetailId.value === id) {
+      selectedDetailId.value = null;
+      detailComment.value = "";
+    }
+  } catch {
+    // silently fail
   }
 };
 
@@ -743,12 +655,12 @@ const openClientDetails = (entry, section) => {
   detailComment.value = "";
 };
 
-const addCommentFromDetails = () => {
+const addCommentFromDetails = async () => {
   if (!selectedDetailEntry.value) return;
   const text = (detailComment.value || "").trim();
   if (!text) return;
 
-  const updatedId = upsertTrackedEntry({
+  const updatedId = await upsertTrackedEntry({
     pac: selectedDetailEntry.value.client.pac,
     status: selectedDetailEntry.value.status,
     commentText: text
@@ -775,8 +687,6 @@ watch(clientQuery, (value) => {
   }
 });
 
-watch(trackedEntries, persistTracked, { deep: true });
-
 watch(
   boardEntries,
   (entries) => {
@@ -789,8 +699,8 @@ watch(
   { immediate: true }
 );
 
-onMounted(() => {
-  restoreTracked();
+onMounted(async () => {
+  await restoreTracked();
   loadTickets();
   loadClients();
   document.addEventListener("click", handleClickOutside);

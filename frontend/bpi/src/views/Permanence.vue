@@ -250,8 +250,6 @@ import "@fullcalendar/common/main.css";
 import "@fullcalendar/daygrid/main.css";
 import "@fullcalendar/timegrid/main.css";
 
-const STORAGE_KEY = "permanences";
-
 const events = ref([]);
 const filterScope = ref("mine");
 const error = ref("");
@@ -269,11 +267,10 @@ const form = ref({
   title: ""
 });
 
-const loadEvents = () => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) return;
+const loadEvents = async () => {
   try {
-    events.value = JSON.parse(stored) ?? [];
+    const res = await api.get("/permanences");
+    events.value = res.data ?? [];
   } catch {
     events.value = [];
   }
@@ -330,14 +327,6 @@ watch(
   () => {
     loadTeamMembers();
   }
-);
-
-watch(
-  events,
-  (value) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  },
-  { deep: true }
 );
 
 const filteredEvents = computed(() =>
@@ -498,7 +487,7 @@ const resolveOwner = () => {
   };
 };
 
-const addPermanence = () => {
+const addPermanence = async () => {
   error.value = "";
 
   if (!form.value.date) {
@@ -545,16 +534,25 @@ const addPermanence = () => {
     ...colors
   };
 
-  events.value = [...events.value, newEvent];
-
-  form.value.title = "";
+  try {
+    await api.post("/permanences", newEvent);
+    events.value = [...events.value, newEvent];
+    form.value.title = "";
+  } catch {
+    error.value = "Erreur lors de l'enregistrement.";
+  }
 };
 
-const removeEvent = (id) => {
+const removeEvent = async (id) => {
   if (!id) return;
   const confirmRemove = window.confirm("Supprimer cette permanence ?");
   if (!confirmRemove) return;
-  events.value = events.value.filter((event) => event.id !== id);
+  try {
+    await api.delete(`/permanences/${id}`);
+    events.value = events.value.filter((event) => event.id !== id);
+  } catch {
+    // silently fail
+  }
 };
 
 const formatDateLabel = (dateValue) => {
@@ -691,22 +689,26 @@ const getTicketsForOwnerDate = (ownerId, dateKey) => {
   return matches.reduce((total, event) => total + getTickets(event), 0);
 };
 
-const updateTicketsForOwnerDate = (ownerId, dateKey, value) => {
+const updateTicketsForOwnerDate = async (ownerId, dateKey, value) => {
   const nextValue = Number(value);
   if (!Number.isFinite(nextValue) || nextValue < 0) return;
 
-  events.value = events.value.map((event) => {
+  const targets = events.value.filter((event) => {
     const eventOwnerId = event.extendedProps?.ownerId || "unknown";
-    if (eventOwnerId !== ownerId) return event;
-    if (toDateKey(event.start) !== dateKey) return event;
-    return {
-      ...event,
-      extendedProps: {
-        ...event.extendedProps,
-        tickets: nextValue
-      }
-    };
+    return eventOwnerId === ownerId && toDateKey(event.start) === dateKey;
   });
+
+  try {
+    await Promise.all(targets.map((event) => api.patch(`/permanences/${event.id}/tickets`, { tickets: nextValue })));
+    events.value = events.value.map((event) => {
+      const eventOwnerId = event.extendedProps?.ownerId || "unknown";
+      if (eventOwnerId !== ownerId) return event;
+      if (toDateKey(event.start) !== dateKey) return event;
+      return { ...event, extendedProps: { ...event.extendedProps, tickets: nextValue } };
+    });
+  } catch {
+    // silently fail
+  }
 };
 
 const monthWeeks = computed(() => {
@@ -782,20 +784,19 @@ const monthTotal = computed(() =>
   rangeEvents.value.reduce((sum, event) => sum + getTickets(event), 0)
 );
 
-const updateTickets = (eventId, value) => {
+const updateTickets = async (eventId, value) => {
   const nextValue = Number(value);
   if (!Number.isFinite(nextValue) || nextValue < 0) return;
 
-  events.value = events.value.map((event) => {
-    if (event.id !== eventId) return event;
-    return {
-      ...event,
-      extendedProps: {
-        ...event.extendedProps,
-        tickets: nextValue
-      }
-    };
-  });
+  try {
+    await api.patch(`/permanences/${eventId}/tickets`, { tickets: nextValue });
+    events.value = events.value.map((event) => {
+      if (event.id !== eventId) return event;
+      return { ...event, extendedProps: { ...event.extendedProps, tickets: nextValue } };
+    });
+  } catch {
+    // silently fail
+  }
 };
 </script>
 
