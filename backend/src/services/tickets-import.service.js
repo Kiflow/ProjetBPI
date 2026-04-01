@@ -22,6 +22,12 @@ const resolveFilePath = () => {
   return path.join(DATA_DIR, match);
 };
 
+const normalizeKeys = (row) => {
+  const out = {};
+  for (const [k, v] of Object.entries(row)) out[k.trim()] = v;
+  return out;
+};
+
 const mapRow = (row) => ({
   numero_ticket: String(
     row["Numero ticket"] ?? row["Numéro ticket"] ?? row["NumeroTicket"] ?? row["Numero Ticket"] ?? row["Numéro Ticket"] ?? ""
@@ -51,6 +57,8 @@ const importTickets = async (onProgress) => {
   const ext = path.extname(filePath).toLowerCase();
   const fileName = path.basename(filePath);
 
+  console.log(`[import] Fichier : ${filePath}`);
+  console.log(`[import] Extension : ${ext}`);
   onProgress && onProgress(0, 0, "Lecture du fichier...");
   await yieldToEventLoop();
 
@@ -58,8 +66,12 @@ const importTickets = async (onProgress) => {
   if (ext === ".csv") {
     const buffer = fs.readFileSync(filePath);
     let raw = buffer.toString("utf8");
-    if (raw.includes("\uFFFD")) raw = buffer.toString("latin1");
+    if (raw.includes("\uFFFD")) {
+      console.log("[import] Encodage UTF-8 invalide, bascule en latin1");
+      raw = buffer.toString("latin1");
+    }
     raw = raw.replace(/^\uFEFF/, "");
+    console.log(`[import] Premiers 300 caractères du fichier :\n${raw.slice(0, 300)}`);
     const wb = xlsx.read(raw, { type: "string" });
     rows = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
   } else {
@@ -67,7 +79,23 @@ const importTickets = async (onProgress) => {
     rows = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
   }
 
-  if (!rows.length) return { inserted: 0, total: 0, file: fileName };
+  console.log(`[import] Lignes lues : ${rows.length}`);
+
+  if (!rows.length) {
+    console.log("[import] Aucune ligne trouvée, import annulé.");
+    return { inserted: 0, total: 0, file: fileName };
+  }
+
+  // Log des clés brutes de la première ligne (avant normalisation)
+  console.log("[import] Clés brutes ligne 1 :", JSON.stringify(Object.keys(rows[0])));
+
+  // Log après normalisation
+  const firstNorm = normalizeKeys(rows[0]);
+  console.log("[import] Clés normalisées ligne 1 :", JSON.stringify(Object.keys(firstNorm)));
+
+  // Log du mapRow sur la première ligne
+  const firstMapped = mapRow(firstNorm);
+  console.log("[import] Résultat mapRow ligne 1 :", JSON.stringify(firstMapped));
 
   const total = rows.length;
   onProgress && onProgress(0, total, `${total.toLocaleString("fr-FR")} tickets trouvés — suppression ancienne table...`);
@@ -85,7 +113,7 @@ const importTickets = async (onProgress) => {
   db.prepare("DELETE FROM tickets").run();
 
   const insertBatch = db.transaction((batch) => {
-    for (const row of batch) insert.run(mapRow(row));
+    for (const row of batch) insert.run(mapRow(normalizeKeys(row)));
   });
 
   let inserted = 0;
@@ -97,7 +125,7 @@ const importTickets = async (onProgress) => {
     await yieldToEventLoop();
   }
 
-  console.log(`[tickets-import] ${inserted} tickets importés depuis ${fileName}`);
+  console.log(`[import] ${inserted} tickets importés depuis ${fileName}`);
   return { inserted, total, file: fileName };
 };
 
