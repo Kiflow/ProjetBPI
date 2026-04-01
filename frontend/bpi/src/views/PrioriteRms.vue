@@ -210,6 +210,7 @@ const fetchPage = async () => {
       limit: pageSize.value,
       handler: handlerFilter.value,
     };
+    if (viewMode.value === "individuel") params.mine = "true";
     if (buFilter.value.length) params.bu = buFilter.value.join(",");
     const res = await api.get("/tickets/rms", { params });
     displayRows.value = res.data.tickets;
@@ -226,7 +227,7 @@ const fetchPage = async () => {
 onMounted(fetchPage);
 
 watch(currentPage, fetchPage);
-watch([pageSize, handlerFilter, buFilter], () => { currentPage.value = 1; fetchPage(); });
+watch([pageSize, handlerFilter, buFilter, viewMode], () => { currentPage.value = 1; fetchPage(); });
 
 const parseMonthYear = (value) => {
   if (!value) return null;

@@ -26,7 +26,8 @@ const mapRow = (r) => ({
   Proprietaire: r.proprietaire,
   Statut: r.statut,
   Categorie: r.categorie,
-  ClassificationBU: r.classification_bu
+  ClassificationBU: r.classification_bu,
+  LoginAdesi: r.login_adesi
 });
 
 // --- RMS helpers ---
@@ -71,6 +72,8 @@ exports.getRmsTickets = (req, res) => {
   const bu      = req.query.bu ? String(req.query.bu).split(",").filter(Boolean) : [];
   const offset  = (page - 1) * limit;
 
+  const mine = req.query.mine === "true";
+
   const conditions = ["id_externe LIKE '%RMS%'"];
   const params = [];
 
@@ -78,6 +81,11 @@ exports.getRmsTickets = (req, res) => {
     conditions.push("LOWER(statut) = 'attente retour client'");
   } else if (handler === "adp") {
     conditions.push("LOWER(statut) != 'attente retour client'");
+  }
+
+  if (mine) {
+    conditions.push("LOWER(login_adesi) = LOWER(?)");
+    params.push(req.user.userId);
   }
 
   if (bu.length) {
@@ -104,13 +112,24 @@ exports.getRmsTickets = (req, res) => {
 };
 
 exports.getTicketsFromDb = (req, res) => {
-  const page  = Math.max(1, parseInt(req.query.page)  || 1);
-  const limit = [10, 20, 50].includes(parseInt(req.query.limit)) ? parseInt(req.query.limit) : 20;
+  const page    = Math.max(1, parseInt(req.query.page) || 1);
+  const limit   = [10, 20, 50].includes(parseInt(req.query.limit)) ? parseInt(req.query.limit) : 20;
   const sortCol = ALLOWED_SORT[req.query.sort] || "id";
-  const offset = (page - 1) * limit;
+  const offset  = (page - 1) * limit;
+  const mine    = req.query.mine === "true";
 
-  const total = db.prepare("SELECT COUNT(*) as n FROM tickets").get().n;
-  const rows  = db.prepare(`SELECT * FROM tickets ORDER BY ${sortCol} LIMIT ? OFFSET ?`).all(limit, offset);
+  const conditions = [];
+  const params = [];
+
+  if (mine) {
+    conditions.push("LOWER(login_adesi) = LOWER(?)");
+    params.push(req.user.userId);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  const total = db.prepare(`SELECT COUNT(*) as n FROM tickets ${where}`).get(...params).n;
+  const rows  = db.prepare(`SELECT * FROM tickets ${where} ORDER BY ${sortCol} LIMIT ? OFFSET ?`).all(...params, limit, offset);
 
   res.json({ tickets: rows.map(mapRow), total, page, limit });
 };

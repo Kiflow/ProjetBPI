@@ -70,7 +70,7 @@
         <h2 class="section-title">Backlog tickets</h2>
         <div class="toolbar-right">
           <span class="total-badge">{{ total.toLocaleString("fr-FR") }} tickets</span>
-          <label class="filter-label" for="sortKey">Trier par</label>
+<label class="filter-label" for="sortKey">Trier par</label>
           <select id="sortKey" v-model="sortKey" class="filter-select">
             <option value="Priorite">Priorité</option>
             <option value="DatePromisPour">Date promis pour</option>
@@ -232,7 +232,7 @@ const fetchPage = async () => {
   loadingTickets.value = true;
   try {
     const res = await api.get("/tickets/db", {
-      params: { page: currentPage.value, limit: pageSize.value, sort: sortKey.value }
+      params: { page: currentPage.value, limit: pageSize.value, sort: sortKey.value, mine: true }
     });
     tickets.value = res.data.tickets;
     total.value = res.data.total;

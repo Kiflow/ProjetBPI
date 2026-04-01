@@ -123,8 +123,14 @@ db.exec(`
     statut TEXT NOT NULL DEFAULT '',
     categorie TEXT NOT NULL DEFAULT '',
     classification_bu TEXT NOT NULL DEFAULT '',
+    login_adesi TEXT NOT NULL DEFAULT '',
     imported_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+// Migration : ajout de login_adesi si la table existait déjà sans cette colonne
+try {
+  db.exec(`ALTER TABLE tickets ADD COLUMN login_adesi TEXT NOT NULL DEFAULT ''`);
+} catch { /* colonne déjà présente */ }
 
 module.exports = db;
