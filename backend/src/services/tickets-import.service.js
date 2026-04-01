@@ -65,12 +65,25 @@ const importTickets = async (onProgress) => {
   let rows;
   if (ext === ".csv") {
     const buffer = fs.readFileSync(filePath);
-    let raw = buffer.toString("utf8");
-    if (raw.includes("\uFFFD")) {
-      console.log("[import] Encodage UTF-8 invalide, bascule en latin1");
-      raw = buffer.toString("latin1");
+    let raw;
+
+    // UTF-16 LE BOM : FF FE
+    if (buffer[0] === 0xFF && buffer[1] === 0xFE) {
+      console.log("[import] Encodage détecté : UTF-16 LE");
+      raw = buffer.toString("utf16le").replace(/^\uFEFF/, "");
+    // UTF-16 BE BOM : FE FF
+    } else if (buffer[0] === 0xFE && buffer[1] === 0xFF) {
+      console.log("[import] Encodage détecté : UTF-16 BE");
+      raw = buffer.swap16().toString("utf16le").replace(/^\uFEFF/, "");
+    } else {
+      raw = buffer.toString("utf8");
+      if (raw.includes("\uFFFD")) {
+        console.log("[import] Encodage UTF-8 invalide, bascule en latin1");
+        raw = buffer.toString("latin1");
+      }
+      raw = raw.replace(/^\uFEFF/, "");
     }
-    raw = raw.replace(/^\uFEFF/, "");
+
     console.log(`[import] Premiers 300 caractères du fichier :\n${raw.slice(0, 300)}`);
     const wb = xlsx.read(raw, { type: "string" });
     rows = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
