@@ -1,4 +1,5 @@
 import axios from "axios";
+import router from "../router";
 
 const api = axios.create({
   baseURL: "http://localhost:3001/api"
@@ -9,5 +10,18 @@ api.interceptors.request.use(config => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.dispatchEvent(new Event("auth-changed"));
+      router.push("/login");
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;

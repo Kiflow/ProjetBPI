@@ -534,9 +534,10 @@ const loadClients = async () => {
   }
 };
 
-const loadTickets = () => {
+const loadTickets = async () => {
   try {
-    tickets.value = JSON.parse(localStorage.getItem("tickets") || "[]");
+    const res = await api.get("/tickets/db");
+    tickets.value = res.data;
   } catch {
     tickets.value = [];
   }
@@ -701,7 +702,7 @@ watch(
 
 onMounted(async () => {
   await restoreTracked();
-  loadTickets();
+  await loadTickets();
   loadClients();
   document.addEventListener("click", handleClickOutside);
 });

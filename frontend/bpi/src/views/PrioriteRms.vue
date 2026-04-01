@@ -56,12 +56,27 @@
       </div>
     </div>
 
-    <p v-if="!displayRows.length" class="empty">
-      Aucun ticket RMS trouvé. Importez d'abord un fichier Excel dans le
-      dashboard.
+    <div class="toolbar">
+      <span class="total-count">{{ total.toLocaleString("fr-FR") }} tickets RMS</span>
+      <div class="toolbar-right">
+        <label class="filter-label" for="pageSize">Afficher</label>
+        <select id="pageSize" v-model="pageSize" class="filter-select" @change="currentPage = 1">
+          <option :value="10">10</option>
+          <option :value="20">20</option>
+          <option :value="50">50</option>
+        </select>
+        <span class="filter-label">par page</span>
+      </div>
+    </div>
+
+    <div v-if="loading" class="loading">Chargement...</div>
+
+    <p v-else-if="!displayRows.length" class="empty">
+      Aucun ticket RMS trouvé. Importez d'abord un fichier dans le dashboard.
     </p>
 
-    <table v-else class="tickets-table">
+    <template v-else>
+    <table class="tickets-table">
       <thead>
         <tr>
           <th class="col-ticket">Numéro ticket</th>
@@ -148,58 +163,70 @@
         </tr>
       </tbody>
     </table>
+
+      <div class="pagination">
+        <button class="page-btn" :disabled="currentPage === 1" @click="currentPage = 1">«</button>
+        <button class="page-btn" :disabled="currentPage === 1" @click="currentPage--">‹</button>
+        <button
+          v-for="page in visiblePages"
+          :key="page"
+          class="page-btn"
+          :class="{ active: page === currentPage }"
+          @click="currentPage = page"
+        >
+          {{ page }}
+        </button>
+        <button class="page-btn" :disabled="currentPage === totalPages" @click="currentPage++">›</button>
+        <button class="page-btn" :disabled="currentPage === totalPages" @click="currentPage = totalPages">»</button>
+        <span class="page-info">Page {{ currentPage }} / {{ totalPages }}</span>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
+import api from "../services/api";
 
-const rows = ref([]);
+const displayRows = ref([]);
+const total = ref(0);
+const buOptions = ref([]);
 const viewMode = ref("equipe");
 const handlerFilter = ref("all");
 const buFilter = ref([]);
+const pageSize = ref(20);
+const currentPage = ref(1);
+const loading = ref(false);
 const hoveredHistoryKey = ref(null);
 const pinnedHistoryKey = ref(null);
 
-const normalizeDate = (raw) => {
-  if (!raw) return null;
-  const clean = String(raw).replace(/[^\d]/g, "");
-  if (clean.length === 4) {
-    const month = clean.slice(0, 2);
-    const year = `20${clean.slice(2)}`;
-    return `${month}/${year}`;
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
+
+const fetchPage = async () => {
+  loading.value = true;
+  try {
+    const params = {
+      page: currentPage.value,
+      limit: pageSize.value,
+      handler: handlerFilter.value,
+    };
+    if (buFilter.value.length) params.bu = buFilter.value.join(",");
+    const res = await api.get("/tickets/rms", { params });
+    displayRows.value = res.data.tickets;
+    total.value = res.data.total;
+    if (res.data.buOptions) buOptions.value = res.data.buOptions;
+  } catch {
+    displayRows.value = [];
+    total.value = 0;
+  } finally {
+    loading.value = false;
   }
-  if (clean.length === 6) {
-    const month = clean.slice(0, 2);
-    const year = clean.slice(2);
-    return `${month}/${year}`;
-  }
-  return null;
 };
 
-const extractRmsDates = (text) => {
-  if (!text) return [];
-  const upper = String(text).toUpperCase();
-  if (!upper.includes("RMS")) return [];
+onMounted(fetchPage);
 
-  const matches =
-    String(text).match(/\b\d{2}[\/.-]?\d{2,4}\b/g) ?? [];
-  const normalized = matches
-    .map((m) => normalizeDate(m))
-    .filter(Boolean);
-
-  return Array.from(new Set(normalized));
-};
-
-const isEquipe = (ticket) => {
-  const owner = String(ticket?.Proprietaire ?? "").toLowerCase();
-  return owner.includes("equipe") || owner.includes("équipe") || owner.includes("pole") || owner.includes("pôle");
-};
-
-const isClientStatus = (value) => {
-  const normalized = String(value ?? "").toLowerCase().trim();
-  return normalized === "attente retour client";
-};
+watch(currentPage, fetchPage);
+watch([pageSize, handlerFilter, buFilter], () => { currentPage.value = 1; fetchPage(); });
 
 const parseMonthYear = (value) => {
   if (!value) return null;
@@ -211,26 +238,12 @@ const parseMonthYear = (value) => {
   return { month, year };
 };
 
-const sortRmsDates = (values) => {
-  const sorted = [...values].sort((a, b) => {
-    const parsedA = parseMonthYear(a);
-    const parsedB = parseMonthYear(b);
-    if (!parsedA && !parsedB) return String(a).localeCompare(String(b), "fr");
-    if (!parsedA) return -1;
-    if (!parsedB) return 1;
-    if (parsedA.year !== parsedB.year) return parsedA.year - parsedB.year;
-    return parsedA.month - parsedB.month;
-  });
-  return sorted;
-};
-
 const dateStatusClass = (value) => {
   const parsed = parseMonthYear(value);
   if (!parsed) return "chip-unknown";
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
-
   if (parsed.year < currentYear) return "chip-overdue";
   if (parsed.year === currentYear && parsed.month < currentMonth) return "chip-overdue";
   if (parsed.year === currentYear && parsed.month === currentMonth) return "chip-current";
@@ -247,24 +260,14 @@ const parseDate = (value) => {
     const excelDate = new Date(utc);
     if (!Number.isNaN(excelDate.getTime())) return excelDate;
   }
-
-  // Prefer explicit d/m/y parsing to avoid US month/day swaps.
   const match = raw.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
   if (match) {
-    const day = Number(match[1]);
-    const month = Number(match[2]);
-    const year = Number(match[3].length === 2 ? `20${match[3]}` : match[3]);
-    const parsed = new Date(year, month - 1, day);
+    const parsed = new Date(Number(match[3].length === 2 ? `20${match[3]}` : match[3]), Number(match[2]) - 1, Number(match[1]));
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
-
-  // Fallback for ISO-like dates only (e.g. 2025-02-01).
   const isoMatch = raw.match(/(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})/);
   if (isoMatch) {
-    const year = Number(isoMatch[1]);
-    const month = Number(isoMatch[2]);
-    const day = Number(isoMatch[3]);
-    const parsed = new Date(year, month - 1, day);
+    const parsed = new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
   return null;
@@ -278,11 +281,8 @@ const truncateText = (value, maxLength = 20) => {
 
 const formatPromiseDate = (value) => {
   const date = parseDate(value);
-  if (!date) return String(value);
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = String(date.getFullYear());
-  return `${day}/${month}/${year}`;
+  if (!date) return String(value ?? "");
+  return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
 };
 
 const daysFromToday = (value) => {
@@ -292,17 +292,13 @@ const daysFromToday = (value) => {
   today.setHours(0, 0, 0, 0);
   const target = new Date(date);
   target.setHours(0, 0, 0, 0);
-  const diffMs = target - today;
-  return Math.round(diffMs / 86400000);
+  return Math.round((target - today) / 86400000);
 };
 
 const promiseStatusText = (value) => {
   const delta = daysFromToday(value);
   if (delta === null) return "Date invalide";
-  if (delta < 0) {
-    const days = Math.abs(delta);
-    return `Dépassée depuis ${days} jour${days > 1 ? "s" : ""}`;
-  }
+  if (delta < 0) { const d = Math.abs(delta); return `Dépassée depuis ${d} jour${d > 1 ? "s" : ""}`; }
   if (delta === 0) return "Échéance aujourd'hui";
   return `Il reste ${delta} jour${delta > 1 ? "s" : ""}`;
 };
@@ -313,103 +309,31 @@ const promiseStatusClass = (value) => {
   return delta < 0 ? "promise-overdue" : "promise-ok";
 };
 
-const isPromiseOverdue = (value) => {
-  const date = parseDate(value);
-  if (!date) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date < today;
-};
-
-const displayRows = computed(() => {
-  let filtered = rows.value;
-  if (viewMode.value !== "equipe") {
-    filtered = filtered.filter((row) => !isEquipe(row));
-  }
-
-  if (handlerFilter.value === "client") {
-    filtered = filtered.filter((row) => isClientStatus(row.Statut));
-  } else if (handlerFilter.value === "adp") {
-    filtered = filtered.filter((row) => !isClientStatus(row.Statut));
-  }
-
-  if (viewMode.value === "equipe" && buFilter.value.length) {
-    filtered = filtered.filter((row) =>
-      buFilter.value.includes(row.ClassificationBU)
-    );
-  }
-
-  return filtered;
-});
-
 const rowKey = (row, index) => `${row.NumeroTicket ?? "ticket"}-${index}`;
 
 const latestDate = (row) => row?.Dates?.[row.Dates.length - 1] ?? "";
+const historyDates = (row) => (!row?.Dates?.length ? [] : row.Dates.slice(0, -1));
 
-const historyDates = (row) => {
-  if (!row?.Dates?.length) return [];
-  return row.Dates.slice(0, -1);
-};
-
-const showHistory = (row, index) => {
-  hoveredHistoryKey.value = rowKey(row, index);
-};
-
+const showHistory = (row, index) => { hoveredHistoryKey.value = rowKey(row, index); };
 const hideHistory = (row, index) => {
   const key = rowKey(row, index);
-  if (hoveredHistoryKey.value === key) {
-    hoveredHistoryKey.value = null;
-  }
+  if (hoveredHistoryKey.value === key) hoveredHistoryKey.value = null;
 };
-
 const toggleHistory = (row, index) => {
   const key = rowKey(row, index);
   pinnedHistoryKey.value = pinnedHistoryKey.value === key ? null : key;
 };
-
 const isHistoryOpen = (row, index) => {
   const key = rowKey(row, index);
   return hoveredHistoryKey.value === key || pinnedHistoryKey.value === key;
 };
 
-onMounted(() => {
-  const stored = localStorage.getItem("tickets");
-  if (!stored) return;
-  let tickets = [];
-  try {
-    tickets = JSON.parse(stored);
-  } catch {
-    tickets = [];
-  }
-
-  rows.value = tickets
-    .map((ticket) => {
-      const dates = sortRmsDates(extractRmsDates(ticket.IdExterne));
-      if (!dates.length) return null;
-      return {
-        NumeroTicket: ticket.NumeroTicket,
-        Objet: ticket.Objet,
-        Priorite: ticket.Priorite,
-        CodeClient: ticket.CodeClient,
-        Compte: ticket.Compte,
-        Proprietaire: ticket.Proprietaire,
-        Categorie: ticket.Categorie,
-        ClassificationBU: ticket.ClassificationBU,
-        Statut: ticket.Statut,
-        DatePromisPour: ticket.DatePromisPour,
-        Dates: dates,
-      };
-    })
-    .filter(Boolean);
-});
-
-const buOptions = computed(() => {
-  const values = rows.value
-    .map((row) => row.ClassificationBU)
-    .filter((value) => value && String(value).trim().length);
-  return Array.from(new Set(values)).sort((a, b) =>
-    String(a).localeCompare(String(b), "fr", { sensitivity: "base" })
-  );
+const visiblePages = computed(() => {
+  const t = totalPages.value;
+  const c = currentPage.value;
+  const pages = [];
+  for (let i = Math.max(1, c - 2); i <= Math.min(t, c + 2); i++) pages.push(i);
+  return pages;
 });
 </script>
 
@@ -738,6 +662,83 @@ const buOptions = computed(() => {
   border-left: 1px solid #e2e8f0;
   border-top: 1px solid #e2e8f0;
   transform: rotate(45deg);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.total-count {
+  font-size: 13px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 4px 10px;
+  border-radius: 99px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #eef2ff;
+  border-color: #0052cc;
+  color: #0052cc;
+}
+
+.page-btn.active {
+  background: #0052cc;
+  border-color: #0052cc;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.page-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 13px;
+  color: #64748b;
+  margin-left: 8px;
 }
 </style>
 

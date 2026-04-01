@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import Dashboard from "../views/Dashboard.vue";
 import Login from "../views/Login.vue";
-import Tickets from "../views/Tickets.vue";
 import CentralisationDemande from "../views/CentralisationDemande.vue";
 import PrioriteRms from "../views/PrioriteRms.vue";
 import Habilitation from "../views/Habilitation.vue";
@@ -14,8 +13,7 @@ import UtilitaireTodo from "../views/UtilitaireTodo.vue";
 const routes = [
   { path: "/login", component: Login },
   { path: "/", component: Dashboard, meta: { requiresAuth: true } },
-  { path: "/tickets", component: Tickets, meta: { requiresAuth: true } },
-  {
+{
     path: "/centralisation-demande",
     component: CentralisationDemande,
     meta: { requiresAuth: true }

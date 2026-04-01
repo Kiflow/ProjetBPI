@@ -107,6 +107,24 @@ db.exec(`
     by TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (entry_id) REFERENCES suivi_entries(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS tickets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    numero_ticket TEXT NOT NULL DEFAULT '',
+    objet TEXT NOT NULL DEFAULT '',
+    priorite TEXT NOT NULL DEFAULT '',
+    priorite_rms TEXT NOT NULL DEFAULT '',
+    date_promis_pour TEXT NOT NULL DEFAULT '',
+    echeance TEXT NOT NULL DEFAULT '',
+    id_externe TEXT NOT NULL DEFAULT '',
+    code_client TEXT NOT NULL DEFAULT '',
+    compte TEXT NOT NULL DEFAULT '',
+    proprietaire TEXT NOT NULL DEFAULT '',
+    statut TEXT NOT NULL DEFAULT '',
+    categorie TEXT NOT NULL DEFAULT '',
+    classification_bu TEXT NOT NULL DEFAULT '',
+    imported_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 module.exports = db;

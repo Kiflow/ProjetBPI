@@ -13,6 +13,9 @@ const wikiRoutes = require("./routes/wiki.routes");
 const todoRoutes = require("./routes/todo.routes");
 const permanenceRoutes = require("./routes/permanence.routes");
 const suiviRoutes = require("./routes/suivi.routes");
+const importRoutes = require("./routes/import.routes");
+const cron = require("node-cron");
+const { importTickets } = require("./services/tickets-import.service");
 
 const app = express();
 
@@ -29,6 +32,17 @@ app.use("/api/wiki", wikiRoutes);
 app.use("/api/todo", todoRoutes);
 app.use("/api/permanences", permanenceRoutes);
 app.use("/api/suivi", suiviRoutes);
+app.use("/api/import", importRoutes);
+
+// Import automatique tous les jours à 6h00
+cron.schedule("0 6 * * *", () => {
+  console.log("[cron] Import tickets automatique...");
+  try {
+    importTickets();
+  } catch (err) {
+    console.error("[cron] Erreur import tickets:", err.message);
+  }
+});
 
 app.listen(3001, () => {
   console.log("Backend running on http://localhost:3001");
