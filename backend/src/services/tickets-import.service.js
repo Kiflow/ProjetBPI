@@ -24,7 +24,7 @@ const resolveFilePath = () => {
 
 const mapRow = (row) => ({
   numero_ticket: String(
-    row["Numero ticket"] ?? row["Numéro ticket"] ?? row["NumeroTicket"] ?? row["Numero Ticket"] ?? ""
+    row["Numero ticket"] ?? row["Numéro ticket"] ?? row["NumeroTicket"] ?? row["Numero Ticket"] ?? row["Numéro Ticket"] ?? ""
   ).trim(),
   objet: String(row.Objet ?? row.objet ?? "").trim(),
   priorite: String(row["Priorité"] ?? row.Priorite ?? row.priorite ?? "").trim(),
