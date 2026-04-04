@@ -72,6 +72,7 @@
           <span class="total-badge">{{ total.toLocaleString("fr-FR") }} tickets</span>
 <label class="filter-label" for="sortKey">Trier par</label>
           <select id="sortKey" v-model="sortKey" class="filter-select">
+            <option value="default">Par défaut</option>
             <option value="Priorite">Priorité</option>
             <option value="DatePromisPour">Date promis pour</option>
             <option value="Echeance">Échéance</option>
@@ -86,11 +87,6 @@
         </div>
       </div>
 
-      <div class="legend">
-        <span class="marker marker-rms"></span>
-        <span class="legend-text">Ticket RMS (détecté dans ID externe)</span>
-      </div>
-
       <div v-if="loadingTickets" class="loading">Chargement…</div>
 
       <p v-else-if="!tickets.length" class="empty">
@@ -98,6 +94,7 @@
       </p>
 
       <template v-else>
+        <div class="table-wrapper">
         <table class="tickets-table">
           <thead>
             <tr>
@@ -110,23 +107,40 @@
               <th>Échéance</th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="(ticket, index) in tickets" :key="ticket.NumeroTicket || index">
+          <tbody v-for="group in groupedTickets" :key="group.key">
+            <tr class="group-header-row">
+              <td colspan="7">
+                <div class="group-header">
+                  <span class="group-line"></span>
+                  <span class="group-label">
+                    <svg v-if="group.key === 'critique'" class="group-icon" style="color:#dc2626" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+                    <svg v-else-if="group.key === 'plan'" class="group-icon" style="color:#7c3aed" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 7l2.55 2.4A1 1 0 0116 11H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clip-rule="evenodd"/></svg>
+                    <svg v-else-if="group.key === 'sensible'" class="group-icon" style="color:#d97706" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1a6 6 0 00-3.815 10.631C7.237 12.5 8 13.443 8 14.456v.544a1 1 0 001 1h2a1 1 0 001-1v-.544c0-1.013.762-1.957 1.815-2.825A6 6 0 0010 1zM8.863 17.414a1 1 0 00-.186 1.986l.022.004a8.998 8.998 0 002.604 0l.022-.004a1 1 0 00-.186-1.986 7.002 7.002 0 01-2.276 0z"/></svg>
+                    <svg v-else class="group-icon" style="color:#64748b" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0L10 9.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                    {{ group.label || 'Autres tickets' }}
+                    <span class="group-count">{{ group.tickets.length }}</span>
+                  </span>
+                  <span class="group-line"></span>
+                </div>
+              </td>
+            </tr>
+            <tr v-for="(ticket, index) in group.tickets" :key="ticket.NumeroTicket || index">
               <td>
                 <div class="ticket-id">
-                  <span v-if="hasRms(ticket)" class="marker marker-rms" aria-hidden="true"></span>
-                  <span>{{ ticket.NumeroTicket }}</span>
+                  <span v-if="hasRms(ticket)" class="rms-tag">RMS</span>
+                  <span class="ticket-num">{{ ticket.NumeroTicket }}</span>
                 </div>
               </td>
               <td class="col-pac">{{ ticket.CodeClient }}</td>
               <td class="col-client" :title="ticket.Compte">{{ ticket.Compte }}</td>
-              <td>{{ ticket.Objet }}</td>
-              <td>{{ ticket.Priorite }}</td>
-              <td>{{ formatDate(ticket.DatePromisPour) }}</td>
-              <td>{{ formatDate(ticket.Echeance) }}</td>
+              <td class="col-objet" :title="ticket.Objet">{{ ticket.Objet }}</td>
+              <td class="col-priorite">{{ ticket.Priorite }}</td>
+              <td class="col-date">{{ formatDate(ticket.DatePromisPour) }}</td>
+              <td class="col-date">{{ formatDate(ticket.Echeance) }}</td>
             </tr>
           </tbody>
         </table>
+        </div>
 
         <div class="pagination">
           <button class="page-btn" :disabled="currentPage === 1" @click="currentPage = 1">«</button>
@@ -221,7 +235,7 @@ const importFromServer = async () => {
 // ── Backlog ─────────────────────────────────────────────────────
 const tickets = ref([]);
 const total = ref(0);
-const sortKey = ref("Priorite");
+const sortKey = ref("default");
 const pageSize = ref(20);
 const currentPage = ref(1);
 const loadingTickets = ref(false);
@@ -277,6 +291,23 @@ const formatDate = (value) => {
 };
 
 const hasRms = (ticket) => String(ticket?.IdExterne ?? "").toUpperCase().includes("RMS");
+
+const CRITIQUE_KEYWORDS = ["critique", "critical", "urgent", "urgente", "p1"];
+const isCritique = (ticket) => CRITIQUE_KEYWORDS.includes(String(ticket?.Priorite ?? "").toLowerCase().trim());
+
+const groupedTickets = computed(() => {
+  const critique = tickets.value.filter(t => isCritique(t));
+  const plan     = tickets.value.filter(t => !isCritique(t) && t.IsPlan);
+  const sensible = tickets.value.filter(t => !isCritique(t) && !t.IsPlan && t.IsSensible);
+  const others   = tickets.value.filter(t => !isCritique(t) && !t.IsPlan && !t.IsSensible);
+
+  const groups = [];
+  if (critique.length) groups.push({ key: "critique", label: "Critique",        tickets: critique });
+  if (plan.length)     groups.push({ key: "plan",     label: "Plan d'action",   tickets: plan });
+  if (sensible.length) groups.push({ key: "sensible", label: "Client sensible", tickets: sensible });
+  if (others.length)   groups.push({ key: "others",   label: null,              tickets: others });
+  return groups;
+});
 
 const visiblePages = computed(() => {
   const pages = [];
@@ -482,11 +513,7 @@ const visiblePages = computed(() => {
 
 /* ── Backlog section ─────────────────────────────────────────── */
 .backlog-section {
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.07);
-  padding: 20px 24px;
-  border: 1px solid #e2e8f0;
+  padding: 0;
 }
 
 .section-header {
@@ -534,31 +561,18 @@ const visiblePages = computed(() => {
   font-size: 13px;
 }
 
-.legend {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  font-size: 13px;
-  color: #64748b;
-}
-
-.legend-text { font-size: 13px; }
-
-.marker {
-  width: 8px;
-  height: 18px;
-  border-radius: 2px;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.marker-rms { background: #d14343; }
-
 .ticket-id {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+.rms-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #d14343;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
 }
 
 .loading {
@@ -578,60 +592,141 @@ const visiblePages = computed(() => {
   width: 100%;
   border-collapse: collapse;
   background: #ffffff;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
-  border: 1px solid #e2e8f0;
 }
 
 .tickets-table th,
 .tickets-table td {
-  border-bottom: 1px solid #e2e8f0;
-  border-right: 1px solid #e2e8f0;
-  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  border-right: 1px solid #f1f5f9;
+  padding: 6px 14px;
   text-align: left;
   vertical-align: middle;
 }
 
 .tickets-table th:last-child,
-.tickets-table td:last-child { border-right: none; }
-
-.tickets-table thead {
-  background: linear-gradient(90deg, #eef2ff 0%, #f8fafc 100%);
+.tickets-table td:last-child {
+  border-right: none;
 }
 
-.tickets-table th {
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.tickets-table thead th {
+  border-bottom: 2px solid #e2e8f0;
   font-size: 11px;
   font-weight: 700;
-  color: #334155;
-  padding: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #94a3b8;
+  padding: 6px 14px;
+  background: #ffffff;
+  white-space: nowrap;
 }
 
 .tickets-table tbody tr {
-  transition: background-color 0.15s ease;
+  transition: background 0.12s ease;
 }
 
-.tickets-table tbody tr:nth-child(even) { background: #f8fafc; }
-.tickets-table tbody tr:hover { background: #eef2ff; }
+.tickets-table tbody tr:not(.group-header-row):hover { background: #f8fafc; }
+
+.tickets-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.group-header-row td {
+  padding: 16px 0 6px !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.group-line {
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.group-line:first-child {
+  display: none;
+}
+
+.group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.group-icon {
+  width: 13px;
+  height: 13px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.group-count {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 99px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
 
 .tickets-table tbody td {
-  color: #0f172a;
+  color: #1e293b;
   font-size: 13px;
-  line-height: 1.3;
+  line-height: 1.4;
+}
+
+.ticket-num {
+  font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
 }
 
 .col-pac {
-  width: 120px;
+  width: 110px;
   white-space: nowrap;
+  color: #64748b;
+  font-size: 12px;
 }
 
 .col-client {
-  max-width: 200px;
+  max-width: 180px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.col-objet {
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #334155;
+}
+
+.col-priorite {
+  white-space: nowrap;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.col-date {
+  white-space: nowrap;
+  color: #64748b;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .pagination {

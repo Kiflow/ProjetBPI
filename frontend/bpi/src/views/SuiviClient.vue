@@ -64,7 +64,7 @@
           <div v-for="entry in boardEntries" :key="entry.id" class="client-card" :class="`status-${entry.status}`">
             <div class="client-main">
               <div>
-                <h4>{{ entry.client.name }}</h4>
+                <h4 class="client-name-link" @click="openClientDetails(entry, 'timeline')">{{ entry.client.name }}</h4>
                 <p class="meta">
                   PAC: {{ entry.client.pac }}
                   <span v-if="entry.client.bu">| BU: {{ entry.client.bu }}</span>
@@ -125,12 +125,12 @@
             </div>
 
             <div class="client-stats">
-              <span class="ticket-indicator">
+              <button type="button" class="ticket-indicator ticket-indicator-btn" @click="openClientDetails(entry, 'tickets')">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M4 7h16v4a2 2 0 0 0 0 4v4H4v-4a2 2 0 0 0 0-4V7zm5 2v8h2V9H9zm4 0v8h2V9h-2z" />
                 </svg>
                 {{ getOpenTickets(entry.client.pac).length }} tickets ouverts
-              </span>
+              </button>
               <button class="comment-link" type="button" @click="openClientDetails(entry, 'comments')">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H8l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
@@ -172,6 +172,20 @@
                 <textarea v-model="detailComment" rows="3" placeholder="Nouveau commentaire..." />
               </label>
               <button class="primary" type="button" @click="addCommentFromDetails">Ajouter</button>
+            </section>
+
+            <section
+              v-else-if="detailSection === 'tickets'"
+              class="drawer-section"
+            >
+              <h4>Tickets ouverts ({{ getOpenTickets(selectedDetailEntry.client.pac).length }})</h4>
+              <ul v-if="getOpenTickets(selectedDetailEntry.client.pac).length" class="ticket-detail-list">
+                <li v-for="ticket in getOpenTickets(selectedDetailEntry.client.pac)" :key="ticket.NumeroTicket" class="ticket-detail-item">
+                  <span class="ticket-detail-num">{{ ticket.NumeroTicket }}</span>
+                  <span class="ticket-detail-objet">{{ ticket.Objet }}</span>
+                </li>
+              </ul>
+              <p v-else class="empty-mini">Aucun ticket ouvert.</p>
             </section>
 
             <section
@@ -536,8 +550,8 @@ const loadClients = async () => {
 
 const loadTickets = async () => {
   try {
-    const res = await api.get("/tickets/db");
-    tickets.value = res.data;
+    const res = await api.get("/tickets/db", { params: { limit: 5000 } });
+    tickets.value = res.data.tickets ?? (Array.isArray(res.data) ? res.data : []);
   } catch {
     tickets.value = [];
   }
@@ -901,6 +915,16 @@ h1 {
   margin-top: 8px;
 }
 
+.client-name-link {
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.client-name-link:hover {
+  color: #1a3a5c;
+  text-decoration: underline;
+}
+
 .ticket-indicator {
   display: inline-flex;
   align-items: center;
@@ -908,6 +932,50 @@ h1 {
   font-size: 12px;
   color: #334155;
   font-weight: 700;
+}
+
+.ticket-indicator-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.ticket-indicator-btn:hover {
+  color: #1a3a5c;
+  text-decoration: underline;
+}
+
+.ticket-detail-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ticket-detail-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.ticket-detail-num {
+  font-weight: 700;
+  color: #1a3a5c;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ticket-detail-objet {
+  color: #334155;
+  line-height: 1.3;
 }
 
 .comment-link {

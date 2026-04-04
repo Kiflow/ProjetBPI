@@ -24,7 +24,7 @@
         <span class="nav-label">Dashboard</span>
       </router-link>
 
-<router-link to="/centralisation-demande" class="nav-item" title="Centralisation demande">
+      <router-link to="/centralisation-demande" class="nav-item" title="Centralisation demande">
         <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.25 12l1.5-1.5a2.25 2.25 0 011.59-.66h13.32a2.25 2.25 0 011.59.66L21.75 12M12 12v6m0 0l-3-3m3 3l3-3M3.75 20.25h16.5a2.25 2.25 0 002.25-2.25v-5.25a2.25 2.25 0 00-2.25-2.25H3.75A2.25 2.25 0 001.5 12.75v5.25a2.25 2.25 0 002.25 2.25z" />
         </svg>
@@ -45,24 +45,15 @@
         <span class="nav-label">Permanence</span>
       </router-link>
 
-      <div class="nav-group">
-        <button
-          class="nav-item nav-group-toggle"
-          type="button"
-          :class="{ active: isInfoOpen }"
-          title="Info client"
-          @click="toggleInfo"
-        >
+      <div class="nav-section">
+        <div class="nav-section-label">
           <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.25 11.25h1.5v5.25h-1.5zM12 8.25h.008" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 12a7.5 7.5 0 1115 0 7.5 7.5 0 01-15 0z" />
           </svg>
           <span class="nav-label">Info client</span>
-          <svg xmlns="http://www.w3.org/2000/svg" class="chevron" viewBox="0 0 24 24" fill="none">
-            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
-        <div v-if="!isCollapsed && isInfoOpen" class="nav-submenu">
+        </div>
+        <div class="nav-submenu">
           <router-link to="/habilitation" class="nav-item sub-item">
             <span class="nav-label">Habilitation</span>
           </router-link>
@@ -72,23 +63,14 @@
         </div>
       </div>
 
-      <div class="nav-group">
-        <button
-          class="nav-item nav-group-toggle"
-          type="button"
-          :class="{ active: isUtilityOpen }"
-          title="Utilitaire"
-          @click="toggleUtility"
-        >
+      <div class="nav-section">
+        <div class="nav-section-label">
           <svg xmlns="http://www.w3.org/2000/svg" class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 6.75h15m-15 4.5h15m-15 4.5h15m-15 4.5h15" />
           </svg>
           <span class="nav-label">Utilitaire</span>
-          <svg xmlns="http://www.w3.org/2000/svg" class="chevron" viewBox="0 0 24 24" fill="none">
-            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
-        <div v-if="!isCollapsed && isUtilityOpen" class="nav-submenu">
+        </div>
+        <div class="nav-submenu">
           <router-link to="/utilitaire-todo" class="nav-item sub-item">
             <span class="nav-label">To-do cockpit</span>
           </router-link>
@@ -107,30 +89,10 @@
 <script setup>
 import { ref } from "vue";
 
-const isInfoOpen = ref(false);
-const isUtilityOpen = ref(false);
 const isCollapsed = ref(false);
 
 const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value;
-  if (isCollapsed.value) {
-    isInfoOpen.value = false;
-    isUtilityOpen.value = false;
-  }
-};
-
-const toggleInfo = () => {
-  if (isCollapsed.value) {
-    isCollapsed.value = false;
-  }
-  isInfoOpen.value = !isInfoOpen.value;
-};
-
-const toggleUtility = () => {
-  if (isCollapsed.value) {
-    isCollapsed.value = false;
-  }
-  isUtilityOpen.value = !isUtilityOpen.value;
 };
 </script>
 
@@ -194,13 +156,16 @@ const toggleUtility = () => {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  margin-bottom: 6px;
+  gap: 9px;
+  padding: 7px 10px;
+  margin-bottom: 3px;
   color: #334155;
   text-decoration: none;
-  border-radius: 10px;
+  border-radius: 8px;
   font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
   transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
@@ -209,71 +174,54 @@ const toggleUtility = () => {
   padding: 10px 8px;
 }
 
-.collapsed .nav-label,
-.collapsed .chevron {
+.collapsed .nav-label {
   display: none;
 }
 
-.nav-group {
+.nav-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  margin-top: 6px;
 }
 
-.nav-group-toggle {
-  width: 100%;
-  justify-content: space-between;
+.nav-section-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 4px;
+  font-size: 11px;
   font-weight: 700;
-  font-size: 16px;
-  background: transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #94a3b8;
+  border-top: 1px solid #e2e8f0;
 }
 
-.collapsed .nav-group-toggle {
+.collapsed .nav-section-label {
   justify-content: center;
+  padding: 6px 8px 4px;
 }
 
-.nav-group-toggle.active {
-  background: #0f2742;
-  color: #ffffff;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
-}
-
-.nav-group-toggle .chevron {
-  width: 16px;
-  height: 16px;
-  margin-left: auto;
-  transition: transform 0.2s ease;
-}
-
-.nav-group-toggle.active .chevron {
-  transform: rotate(180deg);
+.nav-section-label .icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #94a3b8;
 }
 
 .nav-submenu {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   margin-left: 8px;
 }
 
+.collapsed .nav-submenu {
+  margin-left: 0;
+}
+
 .sub-item {
-  padding-left: 16px;
-  font-weight: 600;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-}
-
-.sub-item:hover {
-  background-color: #e8edf3;
-  color: #0f2742;
-  transform: translateX(2px);
-}
-
-.sub-item.router-link-active {
-  background: #0f2742;
-  color: #ffffff;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
-  border-color: transparent;
+  padding-left: 14px;
 }
 
 .nav-item:hover {

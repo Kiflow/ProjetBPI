@@ -1,9 +1,12 @@
 ﻿<template>
   <div class="page">
     <div class="page-header">
-      <div>
-       <!-- <p class="subtitle">Planifiez vos permanences et celles de l'equipe.</p>-->
-      </div>
+      <label class="compact-toggle-label">
+        <span class="compact-switch-track" :class="{ on: compactMode }" @click="compactMode = !compactMode">
+          <span class="compact-switch-thumb"></span>
+        </span>
+        <span>Mode compact</span>
+      </label>
       <div class="scope-toggle" role="group" aria-label="Filtre des permanences">
         <button
           type="button"
@@ -22,7 +25,71 @@
       </div>
     </div>
 
-    <div class="layout">
+    <div v-if="compactMode" class="compact-view">
+      <div class="compact-nav">
+        <button class="compact-nav-btn" @click="prevCompactMonth">‹</button>
+        <span class="compact-nav-title">{{ compactCenterLabel }}</span>
+        <button class="compact-nav-btn" @click="nextCompactMonth">›</button>
+        <span class="compact-year-label">{{ compactYear }}</span>
+        <div class="compact-legend">
+          <span class="compact-legend-item"><span class="compact-cell cc-J">J</span> Journée</span>
+          <span class="compact-legend-item"><span class="compact-cell cc-AM">AM</span> Matin</span>
+          <span class="compact-legend-item"><span class="compact-cell cc-PM">PM</span> Après-midi</span>
+          <span class="compact-legend-item"><span class="compact-cell cc-H">H</span> Horaire (survoler)</span>
+        </div>
+      </div>
+      <div class="compact-table-wrap" ref="compactWrapRef">
+        <table class="compact-table">
+          <thead>
+            <tr>
+              <th class="compact-name-col compact-sticky" rowspan="2">Collaborateur</th>
+              <th
+                v-for="mh in monthHeaders"
+                :key="mh.month"
+                :colspan="mh.colspan"
+                class="compact-month-header"
+                :class="{ 'compact-month-current': mh.month === compactCenterMonth }"
+                :data-month-start="mh.month"
+              >{{ mh.label }}</th>
+            </tr>
+            <tr>
+              <th
+                v-for="day in allYearDays"
+                :key="day.key"
+                class="compact-day-col"
+                :class="{ 'compact-weekend': day.isWeekend }"
+              >
+                <div class="compact-day-wd">{{ day.wd }}</div>
+                <div class="compact-day-num">{{ day.num }}</div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in compactGrid" :key="row.ownerId">
+              <td class="compact-name-col compact-sticky">{{ row.ownerName }}</td>
+              <td
+                v-for="(dayData, i) in row.days"
+                :key="allYearDays[i].key"
+                class="compact-cell-td"
+                :class="{ 'compact-weekend': allYearDays[i].isWeekend }"
+              >
+                <span
+                  v-if="dayData.cell"
+                  class="compact-cell"
+                  :class="`cc-${dayData.cell.code}`"
+                  :title="dayData.cell.tooltip"
+                >{{ dayData.cell.code }}</span>
+              </td>
+            </tr>
+            <tr v-if="!compactGrid.length">
+              <td :colspan="allYearDays.length + 1" class="empty-row">Aucune permanence cette année.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div v-if="!compactMode" class="layout">
       <form class="card" @submit.prevent="addPermanence">
         <h3>Nouvelle permanence</h3>
 
@@ -75,7 +142,7 @@
 
         <label class="field">
           <span>Intitule (optionnel)</span>
-          <input type="text" v-model="form.title" placeholder="Ex: Permanence hotline" />
+          <input type="text" v-model="form.title" placeholder="Ex: Permanence collective" />
         </label>
 
         <p v-if="error" class="error">{{ error }}</p>
@@ -237,7 +304,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, watch, onBeforeUnmount, nextTick } from "vue";
 import "@fullcalendar/core/vdom";
 import FullCalendar from "@fullcalendar/vue3";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -251,11 +318,16 @@ import "@fullcalendar/daygrid/main.css";
 import "@fullcalendar/timegrid/main.css";
 
 const events = ref([]);
-const filterScope = ref("mine");
+const filterScope = ref("team");
 const error = ref("");
 const teamMembers = ref([]);
 const calendarView = ref("timeGridWeek");
 const viewRange = ref({ start: null, end: null });
+
+const compactMode = ref(false);
+const compactYear = ref(new Date().getFullYear());
+const compactCenterMonth = ref(new Date().getMonth() + 1);
+const compactWrapRef = ref(null);
 
 const form = ref({
   type: "journee",
@@ -267,10 +339,21 @@ const form = ref({
   title: ""
 });
 
+const applyColors = (event) => {
+  const ownerId = event.extendedProps?.ownerId;
+  const isMine = ownerId && ownerId === currentUser.value.userId;
+  return {
+    ...event,
+    textColor: "#ffffff",
+    backgroundColor: isMine ? "#1f6f43" : "#0f2742",
+    borderColor: isMine ? "#1f6f43" : "#0f2742"
+  };
+};
+
 const loadEvents = async () => {
   try {
     const res = await api.get("/permanences");
-    events.value = res.data ?? [];
+    events.value = (res.data ?? []).map(applyColors);
   } catch {
     events.value = [];
   }
@@ -374,8 +457,8 @@ const calendarOptions = computed(() => ({
     };
   },
   eventClick: (info) => removeEvent(info.event.id),
-  slotMinTime: "06:00:00",
-  slotMaxTime: "20:00:00",
+  slotMinTime: "08:00:00",
+  slotMaxTime: "18:00:00",
   allDaySlot: true
 }));
 
@@ -511,17 +594,13 @@ const addPermanence = async () => {
   const { start, end, allDay, label } = buildEventTimes();
 
   const isMine = ownerId && ownerId === currentUser.value.userId;
-  const colors = isMine
-    ? { backgroundColor: "#1f6f43", borderColor: "#1f6f43" }
-    : { backgroundColor: "#0f2742", borderColor: "#0f2742" };
 
-  const newEvent = {
+  const newEvent = applyColors({
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     title: `${baseTitle} - ${ownerName}${label}`,
     start,
     end,
     allDay,
-    textColor: "#ffffff",
     extendedProps: {
       scope: isMine ? "mine" : "team",
       ownerId,
@@ -530,9 +609,8 @@ const addPermanence = async () => {
       type: form.value.type,
       label,
       tickets: 0
-    },
-    ...colors
-  };
+    }
+  });
 
   try {
     await api.post("/permanences", newEvent);
@@ -783,6 +861,116 @@ const getTicketsForWeekTotal = (week) =>
 const monthTotal = computed(() =>
   rangeEvents.value.reduce((sum, event) => sum + getTickets(event), 0)
 );
+
+// --- Compact mode ---
+
+const compactCenterLabel = computed(() => {
+  const d = new Date(compactYear.value, compactCenterMonth.value - 1, 1);
+  return d.toLocaleDateString("fr-FR", { month: "long" });
+});
+
+const prevCompactMonth = () => {
+  if (compactCenterMonth.value === 1) { compactCenterMonth.value = 12; compactYear.value--; }
+  else compactCenterMonth.value--;
+  scrollToMonth(compactCenterMonth.value);
+};
+
+const nextCompactMonth = () => {
+  if (compactCenterMonth.value === 12) { compactCenterMonth.value = 1; compactYear.value++; }
+  else compactCenterMonth.value++;
+  scrollToMonth(compactCenterMonth.value);
+};
+
+const scrollToMonth = (month) => {
+  nextTick(() => {
+    if (!compactWrapRef.value) return;
+    const target = compactWrapRef.value.querySelector(`[data-month-start="${month}"]`);
+    if (!target) return;
+    const wrapper = compactWrapRef.value;
+    const offset = target.offsetLeft - 130;
+    wrapper.scrollTo({ left: Math.max(0, offset), behavior: "smooth" });
+  });
+};
+
+watch(compactMode, (v) => { if (v) scrollToMonth(compactCenterMonth.value); });
+
+const allYearDays = computed(() => {
+  const days = [];
+  for (let m = 1; m <= 12; m++) {
+    const daysInMonth = new Date(compactYear.value, m, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(compactYear.value, m - 1, d);
+      const dow = date.getDay();
+      days.push({
+        key: toDateKey(date),
+        num: d,
+        wd: date.toLocaleDateString("fr-FR", { weekday: "short" }),
+        month: m,
+        isWeekend: dow === 0 || dow === 6
+      });
+    }
+  }
+  return days;
+});
+
+const monthHeaders = computed(() => {
+  const months = [];
+  for (let m = 1; m <= 12; m++) {
+    const daysInMonth = new Date(compactYear.value, m, 0).getDate();
+    const label = new Date(compactYear.value, m - 1, 1).toLocaleDateString("fr-FR", { month: "short" });
+    months.push({ month: m, label, colspan: daysInMonth });
+  }
+  return months;
+});
+
+const compactEvents = computed(() =>
+  filteredEvents.value.filter((event) => {
+    const d = new Date(event.start);
+    return d.getFullYear() === compactYear.value;
+  })
+);
+
+const compactCellMap = computed(() => {
+  const map = new Map();
+  compactEvents.value.forEach((event) => {
+    const ownerId = event.extendedProps?.ownerId || "unknown";
+    const dateKey = toDateKey(event.start);
+    if (!map.has(ownerId)) map.set(ownerId, new Map());
+    const type = event.extendedProps?.type || (event.allDay ? "journee" : "horaire");
+    let cell = null;
+    if (type === "journee") cell = { code: "J", tooltip: "Journée complète" };
+    else if (type === "demi") {
+      const isMorning = (event.extendedProps?.label || "").includes("matin");
+      cell = { code: isMorning ? "AM" : "PM", tooltip: isMorning ? "08:00 - 12:00" : "13:00 - 17:00" };
+    } else if (type === "horaire") {
+      cell = { code: "H", tooltip: `${formatTimeLabel(event.start)} - ${formatTimeLabel(event.end)}` };
+    }
+    if (cell) map.get(ownerId).set(dateKey, cell);
+  });
+  return map;
+});
+
+const compactPeople = computed(() => {
+  const map = new Map();
+  compactEvents.value.forEach((event) => {
+    const ownerId = event.extendedProps?.ownerId || "unknown";
+    if (!map.has(ownerId)) map.set(ownerId, { ownerId, ownerName: getOwnerName(event) });
+  });
+  return Array.from(map.values()).sort((a, b) => a.ownerName.localeCompare(b.ownerName));
+});
+
+const compactGrid = computed(() => {
+  const cellMap = compactCellMap.value;
+  const days = allYearDays.value;
+  return compactPeople.value.map((person) => {
+    const personMap = cellMap.get(person.ownerId);
+    return {
+      ownerId: person.ownerId,
+      ownerName: person.ownerName,
+      days: days.map((day) => ({ key: day.key, cell: personMap?.get(day.key) || null }))
+    };
+  });
+});
 
 const updateTickets = async (eventId, value) => {
   const nextValue = Number(value);
@@ -1077,4 +1265,215 @@ const updateTickets = async (eventId, value) => {
     grid-template-columns: 1fr;
   }
 }
+
+/* Modern toggle switch */
+.compact-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.compact-switch-track {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transition: background 0.2s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.compact-switch-track.on {
+  background: #0f2742;
+}
+
+.compact-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  transition: left 0.2s ease;
+}
+
+.compact-switch-track.on .compact-switch-thumb {
+  left: 21px;
+}
+
+/* Compact view */
+.compact-view {
+  margin-bottom: 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.compact-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.compact-nav-btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 16px;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.compact-nav-btn:hover { background: #e2e8f0; }
+
+.compact-nav-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #0f172a;
+  text-transform: capitalize;
+  min-width: 80px;
+  text-align: center;
+}
+
+.compact-year-label {
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.compact-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.compact-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.compact-table-wrap {
+  overflow-x: auto;
+  scroll-behavior: smooth;
+}
+
+.compact-table {
+  border-collapse: collapse;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.compact-table th,
+.compact-table td {
+  border: 1px solid #e2e8f0;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.compact-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #f8fafc;
+}
+
+.compact-table thead th.compact-sticky {
+  z-index: 3;
+  background: #f1f5f9;
+}
+
+.compact-table td.compact-name-col,
+.compact-table th.compact-name-col {
+  text-align: left;
+  padding: 5px 10px;
+  font-weight: 600;
+  color: #334155;
+  min-width: 130px;
+}
+
+.compact-month-header {
+  padding: 4px 6px;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: capitalize;
+  color: #475569;
+  background: #f8fafc;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.compact-month-header.compact-month-current {
+  background: #e8f0fb;
+  color: #1d4ed8;
+  border-bottom-color: #3b82f6;
+}
+
+.compact-day-col {
+  padding: 3px 2px;
+  min-width: 28px;
+  background: #f8fafc;
+}
+
+.compact-day-wd {
+  font-size: 9px;
+  text-transform: capitalize;
+  color: #94a3b8;
+}
+
+.compact-day-num {
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.compact-weekend {
+  background: #f1f5f9 !important;
+}
+
+.compact-weekend .compact-day-wd,
+.compact-weekend .compact-day-num {
+  color: #cbd5e1 !important;
+}
+
+.compact-cell-td {
+  padding: 2px 3px;
+}
+
+.compact-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: default;
+}
+
+.cc-J  { background: #dbeafe; color: #1d4ed8; }
+.cc-AM { background: #dcfce7; color: #166534; }
+.cc-PM { background: #fef9c3; color: #854d0e; }
+.cc-H  { background: #f3e8ff; color: #7c3aed; }
 </style>

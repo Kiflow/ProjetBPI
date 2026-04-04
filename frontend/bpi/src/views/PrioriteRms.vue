@@ -413,15 +413,13 @@ const visiblePages = computed(() => {
   margin-top: 16px;
   border-collapse: collapse;
   background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
 }
 
 .tickets-table th,
 .tickets-table td {
-  border-bottom: 1px solid #e2e8f0;
-  border-right: 1px solid #e2e8f0;
-  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  border-right: 1px solid #f1f5f9;
+  padding: 6px 14px;
   text-align: left;
   vertical-align: middle;
 }
@@ -431,34 +429,34 @@ const visiblePages = computed(() => {
   border-right: none;
 }
 
-.tickets-table thead {
-  background: linear-gradient(90deg, #eef2ff 0%, #f8fafc 100%);
-}
-
-.tickets-table th {
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-size: 12px;
+.tickets-table thead th {
+  border-bottom: 2px solid #e2e8f0;
+  font-size: 11px;
   font-weight: 700;
-  color: #334155;
-  padding: 12px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #94a3b8;
+  padding: 6px 14px;
+  background: #ffffff;
+  white-space: nowrap;
 }
 
 .tickets-table tbody tr {
-  transition: background-color 0.2s ease, transform 0.2s ease;
-}
-
-.tickets-table tbody tr:nth-child(even) {
-  background: #f8fafc;
+  transition: background 0.12s ease;
 }
 
 .tickets-table tbody tr:hover {
-  background: #eef2ff;
+  background: #f8fafc;
+}
+
+.tickets-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .tickets-table tbody td {
-  color: #0f172a;
-  line-height: 1.2;
+  color: #1e293b;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .col-ticket {

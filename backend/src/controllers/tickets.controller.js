@@ -6,7 +6,18 @@ exports.getTickets = (req, res) => {
   res.json(tickets);
 };
 
+const DEFAULT_SORT = `
+  CASE
+    WHEN LOWER(priorite) IN ('critique','critical','urgent','urgente','p1') THEN 1
+    WHEN is_plan = 1 THEN 2
+    WHEN is_sensible = 1 THEN 3
+    WHEN id_externe LIKE '%RMS%' THEN 4
+    ELSE 5
+  END, id
+`;
+
 const ALLOWED_SORT = {
+  default: DEFAULT_SORT,
   Priorite: "priorite",
   DatePromisPour: "date_promis_pour",
   Echeance: "echeance",
@@ -27,7 +38,9 @@ const mapRow = (r) => ({
   Statut: r.statut,
   Categorie: r.categorie,
   ClassificationBU: r.classification_bu,
-  LoginAdesi: r.login_adesi
+  LoginAdesi: r.login_adesi,
+  IsSensible: Boolean(r.is_sensible),
+  IsPlan: Boolean(r.is_plan)
 });
 
 // --- RMS helpers ---
@@ -113,23 +126,41 @@ exports.getRmsTickets = (req, res) => {
 
 exports.getTicketsFromDb = (req, res) => {
   const page    = Math.max(1, parseInt(req.query.page) || 1);
-  const limit   = [10, 20, 50].includes(parseInt(req.query.limit)) ? parseInt(req.query.limit) : 20;
-  const sortCol = ALLOWED_SORT[req.query.sort] || "id";
+  const limit   = [10, 20, 50, 5000].includes(parseInt(req.query.limit)) ? parseInt(req.query.limit) : 20;
+  const sortCol = ALLOWED_SORT[req.query.sort] || DEFAULT_SORT;
   const offset  = (page - 1) * limit;
   const mine    = req.query.mine === "true";
+  const userId  = req.user.userId;
 
   const conditions = [];
-  const params = [];
+  const filterParams = [];
 
   if (mine) {
-    conditions.push("LOWER(login_adesi) = LOWER(?)");
-    params.push(req.user.userId);
+    conditions.push("LOWER(t.login_adesi) = LOWER(?)");
+    filterParams.push(userId);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  const total = db.prepare(`SELECT COUNT(*) as n FROM tickets ${where}`).get(...params).n;
-  const rows  = db.prepare(`SELECT * FROM tickets ${where} ORDER BY ${sortCol} LIMIT ? OFFSET ?`).all(...params, limit, offset);
+  const innerSql = `
+    SELECT t.*,
+      EXISTS(
+        SELECT 1 FROM suivi_entries se
+        WHERE TRIM(LOWER(se.pac)) = TRIM(LOWER(t.code_client))
+          AND se.status = 'sensible' AND se.user_id = ?
+      ) as is_sensible,
+      EXISTS(
+        SELECT 1 FROM suivi_entries se
+        WHERE TRIM(LOWER(se.pac)) = TRIM(LOWER(t.code_client))
+          AND se.status = 'plan' AND se.user_id = ?
+      ) as is_plan
+    FROM tickets t
+    ${where}
+  `;
+
+  const total = db.prepare(`SELECT COUNT(*) as n FROM tickets t ${where}`).get(...filterParams).n;
+  const rows  = db.prepare(`SELECT * FROM (${innerSql}) ORDER BY ${sortCol} LIMIT ? OFFSET ?`)
+    .all(userId, userId, ...filterParams, limit, offset);
 
   res.json({ tickets: rows.map(mapRow), total, page, limit });
 };

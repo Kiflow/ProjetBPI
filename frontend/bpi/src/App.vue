@@ -56,6 +56,7 @@ const logout = () => {
 
 .main-layout {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -64,7 +65,9 @@ const logout = () => {
 .main-content {
   flex: 1;
   overflow-y: auto;
-  padding: 24px; /* tu peux réduire si tu veux zéro espace */
+  overflow-x: hidden;
+  min-width: 0;
+  padding: 24px;
 }
 /* Reset navigateur */
 * {

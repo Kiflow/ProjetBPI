@@ -14,6 +14,8 @@ const todoRoutes = require("./routes/todo.routes");
 const permanenceRoutes = require("./routes/permanence.routes");
 const suiviRoutes = require("./routes/suivi.routes");
 const importRoutes = require("./routes/import.routes");
+const subjectsRoutes = require("./routes/subjects.routes");
+const subjectTemplatesRoutes = require("./routes/subject-templates.routes");
 const cron = require("node-cron");
 const { importTickets } = require("./services/tickets-import.service");
 
@@ -33,6 +35,8 @@ app.use("/api/todo", todoRoutes);
 app.use("/api/permanences", permanenceRoutes);
 app.use("/api/suivi", suiviRoutes);
 app.use("/api/import", importRoutes);
+app.use("/api/subjects", subjectsRoutes);
+app.use("/api/subject-templates", subjectTemplatesRoutes);
 
 // Import automatique tous les jours à 6h00
 cron.schedule("0 6 * * *", () => {

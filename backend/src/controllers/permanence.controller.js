@@ -6,9 +6,6 @@ const toEvent = (row) => ({
   start: row.start,
   end: row.end,
   allDay: row.all_day === 1,
-  textColor: row.text_color,
-  backgroundColor: row.background_color,
-  borderColor: row.border_color,
   extendedProps: {
     ownerId: row.owner_id,
     ownerName: row.owner_name,
@@ -26,20 +23,19 @@ exports.getEvents = (req, res) => {
 };
 
 exports.createEvent = (req, res) => {
-  const { id, title, start, end, allDay, textColor, backgroundColor, borderColor, extendedProps } = req.body;
+  const { id, title, start, end, allDay, extendedProps } = req.body;
   if (!id || !title || !start) return res.status(400).json({ message: "id, title et start requis" });
   const ep = extendedProps || {};
   db.prepare(`
     INSERT INTO permanences
-      (id, user_id, title, start, end, all_day, owner_id, owner_name, owner_group, scope, label, type, tickets, background_color, border_color, text_color)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, user_id, title, start, end, all_day, owner_id, owner_name, owner_group, scope, label, type, tickets)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, req.user.userId, title, start, end || start,
     allDay ? 1 : 0,
     ep.ownerId || "", ep.ownerName || "", ep.ownerGroup || "",
     ep.scope || "mine", ep.label || "", ep.type || "",
-    ep.tickets || 0,
-    backgroundColor || "#1f6f43", borderColor || "#1f6f43", textColor || "#ffffff"
+    ep.tickets || 0
   );
   res.status(201).json({ id });
 };
