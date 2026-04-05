@@ -63,9 +63,10 @@ exports.getSubjectTickets = (req, res) => {
   const { id } = req.params;
   const rows = db.prepare(`
     SELECT st.id AS link_id, st.ticket_number, st.added_at,
-      t.objet, t.code_client, t.priorite, t.login_adesi
+      t.objet, t.statut, t.login_adesi,
+      t.date_promis_pour AS date_ouverture, t.echeance AS date_cloture
     FROM subject_tickets st
-    LEFT JOIN tickets t ON LOWER(TRIM(t.id_externe)) = LOWER(TRIM(st.ticket_number))
+    LEFT JOIN tickets t ON LOWER(TRIM(t.numero_ticket)) = LOWER(TRIM(st.ticket_number))
     WHERE st.subject_id = ?
     ORDER BY st.added_at DESC
   `).all(id);

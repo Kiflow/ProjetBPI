@@ -1,3 +1,6 @@
+backend/data/app.db
+backend/data/app.db-shm
+backend/data/app.db-wal
 backend/data/catalogue de service interne.xlsx
 backend/data/employees.csv
 backend/data/tickets.xlsx

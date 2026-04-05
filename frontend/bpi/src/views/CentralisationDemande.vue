@@ -83,21 +83,26 @@
               <p class="main-sub">PAC : {{ selectedClient.pac }}<span v-if="selectedClient.bu"> · BU : {{ selectedClient.bu }}</span></p>
             </div>
           </div>
-          <button class="btn-new" type="button" @click="openAddSubjectModal">
-            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"/></svg>
-            Ajouter un sujet
-          </button>
+          <div class="header-right">
+            <div class="subject-search-wrap">
+              <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clip-rule="evenodd"/></svg>
+              <input v-model="subjectSearch" type="search" placeholder="Rechercher un sujet..." class="subject-search-input" />
+            </div>
+            <button class="btn-new" type="button" @click="openAddSubjectModal">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"/></svg>
+              Ajouter un sujet
+            </button>
+          </div>
         </div>
 
-        <p v-if="!clientSubjects.length" class="empty-main">Aucun sujet pour ce client. Cliquez sur "Ajouter un sujet".</p>
+        <p v-if="!filteredSubjects.length" class="empty-main">{{ subjectSearch ? 'Aucun sujet correspondant.' : 'Aucun sujet pour ce client. Cliquez sur "Ajouter un sujet".' }}</p>
 
         <div v-else class="subjects-grid">
-          <div v-for="s in clientSubjects" :key="s.id" class="subject-card" :class="{ expanded: expandedId === s.id }">
+          <div v-for="s in filteredSubjects" :key="s.id" class="subject-card" :class="{ expanded: expandedId === s.id }">
             <div class="subject-card-head" @click="toggleExpand(s.id)">
               <div class="subject-card-left">
                 <div class="subject-name-row">
                   <span class="subject-card-name">{{ s.name }}</span>
-                  <span v-if="s.template_id" class="tpl-badge">Modèle</span>
                 </div>
                 <span v-if="s.description" class="subject-card-desc">{{ s.description }}</span>
               </div>
@@ -108,6 +113,7 @@
                 <span v-else class="unassigned-chip">Non assigné</span>
                 <span class="badge-count">{{ s.ticket_count }} ticket{{ s.ticket_count !== 1 ? 's' : '' }}</span>
                 <span v-if="s.initial_ticket" class="ref-chip">Réf: {{ s.initial_ticket }}</span>
+                <span class="ref-chip">Création : {{ formatDate(s.created_at) }}</span>
                 <div class="card-actions-row">
                   <button class="icon-btn" title="Modifier" @click.stop="openEditSubject(s)">
                     <svg viewBox="0 0 20 20" fill="currentColor"><path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z"/></svg>
@@ -288,7 +294,7 @@ const TicketsPanel = defineComponent({
     const linkQuery = ref("");
     const linkNumber = ref("");
     const showDrop = ref(false);
-    const ticketSearch = ref("");
+    const showLinkRow = ref(false);
     const linkError = ref("");
 
     const normalize = (v) => String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -300,12 +306,7 @@ const TicketsPanel = defineComponent({
       finally { loading.value = false; }
     };
 
-    const displayed = computed(() => {
-      let list = tickets.value;
-      const q = normalize(ticketSearch.value);
-      if (q) list = list.filter(t => normalize(t.ticket_number).includes(q) || normalize(t.objet).includes(q));
-      return list;
-    });
+    const displayed = computed(() => tickets.value);
 
     const dropOptions = computed(() => {
       const q = normalize(linkQuery.value);
@@ -320,7 +321,7 @@ const TicketsPanel = defineComponent({
       if (!linkNumber.value) { linkError.value = "Sélectionnez un ticket."; return; }
       try {
         await api.post(`/subjects/${props.subjectId}/tickets`, { ticket_number: linkNumber.value });
-        linkQuery.value = ""; linkNumber.value = "";
+        linkQuery.value = ""; linkNumber.value = ""; showLinkRow.value = false;
         await load();
         emit("updated");
       } catch (e) { linkError.value = e?.response?.data?.message || "Erreur."; }
@@ -341,38 +342,48 @@ const TicketsPanel = defineComponent({
     onMounted(load);
 
     return () => h("div", { class: "tickets-panel" }, [
-      h("div", { class: "tp-toolbar" }, [
-        h("input", { class: "tp-search", placeholder: "Filtrer…", value: ticketSearch.value, onInput: (e) => { ticketSearch.value = e.target.value; } }),
-        h("div", { class: "tp-link-wrap" }, [
-          h("div", { class: "autocomplete-wrap" }, [
-            h("input", { class: "tp-link-input", placeholder: "Lier un ticket (numéro ou objet)…", value: linkQuery.value,
-              onInput: (e) => { linkQuery.value = e.target.value; showDrop.value = true; },
-              onFocus: () => { showDrop.value = true; }
-            }),
-            showDrop.value && dropOptions.value.length ? h("div", { class: "autocomplete-drop" },
-              dropOptions.value.map(t => h("button", { type: "button", class: "drop-item", onClick: () => selectTicket(t) }, [
-                h("span", { class: "drop-num" }, t.NumeroTicket),
-                h("span", { class: "drop-objet" }, t.Objet)
-              ]))
-            ) : null
-          ]),
-          h("button", { class: "btn-link-sm", disabled: !linkNumber.value, onClick: link }, "Lier")
-        ])
+      h("div", { class: "tp-add-row" }, [
+        !showLinkRow.value
+          ? h("button", { type: "button", class: "btn-add-ticket", onClick: () => { showLinkRow.value = true; linkError.value = ""; } }, [
+              h("span", {}, "+ Ajouter un ticket")
+            ])
+          : h("div", { class: "tp-link-wrap" }, [
+              h("div", { class: "autocomplete-wrap" }, [
+                h("input", { class: "tp-link-input", placeholder: "Numéro ou objet du ticket…", value: linkQuery.value,
+                  onInput: (e) => { linkQuery.value = e.target.value; showDrop.value = true; },
+                  onFocus: () => { showDrop.value = true; }
+                }),
+                showDrop.value && dropOptions.value.length ? h("div", { class: "autocomplete-drop" },
+                  dropOptions.value.map(t => h("button", { type: "button", class: "drop-item", onClick: () => selectTicket(t) }, [
+                    h("span", { class: "drop-num" }, t.NumeroTicket),
+                    h("span", { class: "drop-objet" }, t.Objet)
+                  ]))
+                ) : null
+              ]),
+              h("button", { class: "btn-link-sm", disabled: !linkNumber.value, onClick: link }, "Lier"),
+              h("button", { class: "btn-cancel-sm", onClick: () => { showLinkRow.value = false; linkQuery.value = ""; linkNumber.value = ""; linkError.value = ""; } }, "Annuler")
+            ])
       ]),
       linkError.value ? h("p", { class: "tp-error" }, linkError.value) : null,
       loading.value ? h("p", { class: "tp-empty" }, "Chargement…") :
       !displayed.value.length ? h("p", { class: "tp-empty" }, "Aucun ticket lié.") :
       h("table", { class: "tickets-table" }, [
         h("thead", {}, [h("tr", {}, [
-          h("th", {}, "Numéro"), h("th", {}, "Objet"), h("th", {}, "Client"),
-          h("th", {}, "Priorité"), h("th", {}, "Traité par"), h("th", {})
+          h("th", {}, "Numéro"),
+          h("th", {}, "Statut"),
+          h("th", {}, "Traité par"),
+          h("th", {}, "Objet"),
+          h("th", {}, "Date ouverture"),
+          h("th", {}, "Date clôture"),
+          h("th", {})
         ])]),
         h("tbody", {}, displayed.value.map(t => h("tr", { key: t.link_id }, [
           h("td", { class: "col-num" }, t.ticket_number),
-          h("td", { class: "col-objet", title: t.objet }, t.objet || "—"),
-          h("td", { class: "col-client" }, t.code_client || "—"),
-          h("td", { class: "col-prio" }, t.priorite ? h("span", { class: `prio-badge ${prioBadgeClass(t.priorite)}` }, t.priorite) : "—"),
+          h("td", { class: "col-statut" }, t.statut || "—"),
           h("td", { class: "col-handler" }, t.login_adesi || "—"),
+          h("td", { class: "col-objet", title: t.objet }, t.objet || "—"),
+          h("td", { class: "col-date" }, t.date_ouverture || ""),
+          h("td", { class: "col-date" }, t.date_cloture || ""),
           h("td", { class: "col-action" }, h("button", { class: "unlink-btn", onClick: () => unlink(t.link_id) }, "✕"))
         ])))
       ])
@@ -388,6 +399,7 @@ const allTickets = ref([]);
 const teamMembers = ref([]);
 
 const clientSearch = ref("");
+const subjectSearch = ref("");
 const selectedPac = ref(null);
 const showTemplates = ref(false);
 const expandedId = ref(null);
@@ -420,6 +432,11 @@ const filteredClients = computed(() => {
 const selectedClient = computed(() => allClients.value.find(c => c.pac === selectedPac.value) || null);
 
 const clientSubjects = computed(() => subjects.value.filter(s => s.pac === selectedPac.value));
+const filteredSubjects = computed(() => {
+  const q = normalize(subjectSearch.value);
+  if (!q) return clientSubjects.value;
+  return clientSubjects.value.filter(s => normalize(s.name).includes(q) || normalize(s.description).includes(q));
+});
 
 const customCountByPac = computed(() => {
   const map = {};
@@ -428,13 +445,11 @@ const customCountByPac = computed(() => {
 });
 
 // Templates not yet added for current client
-const availableTemplates = computed(() => {
-  const usedTplIds = new Set(clientSubjects.value.map(s => s.template_id).filter(Boolean));
-  return templates.value.filter(t => !usedTplIds.has(t.id));
-});
+const availableTemplates = computed(() => templates.value);
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const initials = (name) => String(name || "?").split(" ").filter(Boolean).map(p => p[0].toUpperCase()).slice(0, 2).join("");
+const formatDate = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "";
 
 // ── API ────────────────────────────────────────────────────────────────────
 const loadSubjects = async () => {
@@ -470,7 +485,7 @@ const loadTeamMembers = async () => {
 onMounted(() => { loadSubjects(); loadTemplates(); loadClients(); loadTickets(); loadTeamMembers(); });
 
 // ── Actions ────────────────────────────────────────────────────────────────
-const selectClient = (c) => { selectedPac.value = c.pac; showTemplates.value = false; expandedId.value = null; };
+const selectClient = (c) => { selectedPac.value = c.pac; showTemplates.value = false; expandedId.value = null; subjectSearch.value = ""; };
 const toggleTemplates = () => { showTemplates.value = !showTemplates.value; if (showTemplates.value) { selectedPac.value = null; expandedId.value = null; } };
 const toggleExpand = (id) => { expandedId.value = expandedId.value === id ? null : id; };
 
@@ -673,6 +688,11 @@ const deleteTemplate = async (id) => {
 .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #94a3b8; font-size: 14px; }
 .empty-state svg { width: 56px; height: 56px; }
 .empty-main { color: #94a3b8; font-size: 13px; }
+.header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.subject-search-wrap { position: relative; width: 240px; }
+.subject-search-wrap .search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: #94a3b8; pointer-events: none; }
+.subject-search-input { width: 100%; padding: 7px 10px 7px 30px; border: 1px solid #e2e8f0; border-radius: 7px; font-size: 13px; background: #fff; box-sizing: border-box; }
+.subject-search-input:focus { outline: none; border-color: #93c5fd; }
 
 /* ── Templates management list ── */
 .tpl-list { display: flex; flex-direction: column; gap: 6px; }
@@ -688,7 +708,7 @@ const deleteTemplate = async (id) => {
 /* ── Subject cards ── */
 .subjects-grid { display: flex; flex-direction: column; gap: 8px; }
 .subject-card {
-  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;
   transition: box-shadow 0.15s;
 }
 .subject-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
@@ -729,6 +749,7 @@ const deleteTemplate = async (id) => {
   white-space: nowrap;
 }
 .ref-chip { font-size: 11px; color: #64748b; background: #f8fafc; padding: 2px 7px; border-radius: 6px; border: 1px solid #e2e8f0; }
+.subject-card-date { font-size: 11px; color: #64748b; background: #f8fafc; padding: 2px 7px; border-radius: 6px; border: 1px solid #e2e8f0; width: fit-content; }
 
 .card-actions-row { display: flex; align-items: center; gap: 4px; }
 .chevron { width: 16px; height: 16px; color: #94a3b8; transition: transform 0.2s; }
@@ -804,9 +825,12 @@ const deleteTemplate = async (id) => {
 
 /* ── TicketsPanel (rendered via h()) ── */
 :deep(.tickets-panel) { display: flex; flex-direction: column; gap: 10px; }
-:deep(.tp-toolbar) { display: flex; gap: 8px; flex-wrap: wrap; }
-:deep(.tp-search) { flex: 1; min-width: 120px; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 7px; font-size: 12px; }
-:deep(.tp-link-wrap) { display: flex; gap: 6px; flex: 2; min-width: 240px; }
+:deep(.tp-add-row) { display: flex; align-items: center; }
+:deep(.btn-add-ticket) { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; background: transparent; border: 1px dashed #cbd5e1; border-radius: 7px; font-size: 12px; color: #64748b; cursor: pointer; }
+:deep(.btn-add-ticket:hover) { border-color: #1a3a5c; color: #1a3a5c; background: #f8fafc; }
+:deep(.tp-link-wrap) { display: flex; gap: 6px; flex: 1; min-width: 240px; }
+:deep(.btn-cancel-sm) { padding: 6px 10px; background: transparent; border: 1px solid #e2e8f0; border-radius: 7px; font-size: 12px; color: #64748b; cursor: pointer; white-space: nowrap; }
+:deep(.btn-cancel-sm:hover) { background: #f8fafc; }
 :deep(.autocomplete-wrap) { position: relative; flex: 1; }
 :deep(.tp-link-input) { width: 100%; padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 7px; font-size: 12px; box-sizing: border-box; }
 :deep(.autocomplete-drop) { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 50; max-height: 220px; overflow-y: auto; }
@@ -822,8 +846,9 @@ const deleteTemplate = async (id) => {
 :deep(.tickets-table th) { padding: 6px 10px; text-align: left; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #f1f5f9; }
 :deep(.tickets-table td) { padding: 7px 10px; border-bottom: 1px solid #f8fafc; color: #1e293b; }
 :deep(.col-num) { font-weight: 600; color: #1a3a5c; white-space: nowrap; }
-:deep(.col-objet) { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-:deep(.col-client) { white-space: nowrap; color: #64748b; }
+:deep(.col-objet) { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:deep(.col-statut) { white-space: nowrap; color: #475569; font-size: 11px; }
+:deep(.col-date) { white-space: nowrap; color: #64748b; font-size: 11px; }
 :deep(.prio-badge) { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
 :deep(.prio-critique) { background: #fee2e2; color: #dc2626; }
 :deep(.prio-haute) { background: #fef3c7; color: #d97706; }
