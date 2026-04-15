@@ -22,12 +22,7 @@
             backend/data/tickets.csv — .xlsx
           </p>
         </div>
-        <button
-          type="button"
-          class="import-btn"
-          :disabled="importing"
-          @click="importFromServer"
-        >
+        <button type="button" class="import-btn" :disabled="importing" @click="importFromServer">
           <svg v-if="!importing" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4m0 8l-3-3m3 3l3-3" />
@@ -48,11 +43,8 @@
           </span>
         </div>
         <div class="progress-track">
-          <div
-            class="progress-bar"
-            :class="{ done: importDone && !importError, error: !!importError }"
-            :style="{ width: importPct + '%' }"
-          />
+          <div class="progress-bar" :class="{ done: importDone && !importError, error: !!importError }"
+            :style="{ width: importPct + '%' }" />
         </div>
         <p v-if="importDone && !importError" class="import-success">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -64,100 +56,244 @@
       </div>
     </div>
 
-    <!-- ── Backlog ───────────────────────────────────────────────── -->
-    <div class="backlog-section">
-      <div class="section-header">
-        <h2 class="section-title">Backlog tickets</h2>
-        <div class="toolbar-right">
-          <span class="total-badge">{{ total.toLocaleString("fr-FR") }} tickets</span>
-<label class="filter-label" for="sortKey">Trier par</label>
-          <select id="sortKey" v-model="sortKey" class="filter-select">
-            <option value="default">Par défaut</option>
-            <option value="Priorite">Priorité</option>
-            <option value="DatePromisPour">Date promis pour</option>
-            <option value="Echeance">Échéance</option>
-          </select>
-          <label class="filter-label" for="pageSize">Afficher</label>
-          <select id="pageSize" v-model="pageSize" class="filter-select" @change="currentPage = 1">
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-            <option :value="50">50</option>
-          </select>
-          <span class="filter-label">par page</span>
+    <!-- ── Stats row ─────────────────────────────────────────────── -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <p class="stat-label">Total tickets actifs</p>
+        <p class="stat-value">{{ total.toLocaleString("fr-FR") || "1 284" }}</p>
+      </div>
+      <div class="stat-card stat-card--critical">
+        <p class="stat-label">Priorité critique</p>
+        <p class="stat-value">42</p>
+        <p class="stat-sub">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 3l4 6H4l4-6z"/></svg>
+          +12% vs hier
+        </p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">Tickets fermés ce mois</p>
+        <p class="stat-value">89</p>
+        <p class="stat-sub muted">Tickets fermés fiscal : 324</p>
+      </div>
+      <div class="stat-card">
+        <p class="stat-label">Attente retour client +2 mois</p>
+        <p class="stat-value">14</p>
+        <p class="stat-sub muted">Attente retour client total : 57</p>
+      </div>
+    </div>
+
+    <div v-if="loadingTickets" class="loading">Chargement…</div>
+
+    <template v-else-if="tickets.length">
+
+      <!-- ── Tickets Critiques ──────────────────────────────────── -->
+      <div v-if="critiqueTickets.length" class="section-card">
+        <div class="section-header critique-header">
+          <div class="section-header-left">
+            <svg class="section-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+            </svg>
+            <span class="section-title">Tickets Critiques</span>
+            <span class="badge-urgent">URGENT</span>
+          </div>
+          <span class="section-count">{{ critiqueTickets.length }}</span>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Référence</th>
+                <th>PAC</th>
+                <th>Client</th>
+                <th>Objet</th>
+                <th>Priorité</th>
+                <th>Date promis pour</th>
+                <th>Date prochain traitement</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(ticket, i) in critiqueTickets" :key="ticket.NumeroTicket || i">
+                <td>
+                  <span class="ref-link">
+                    <span v-if="hasRms(ticket)" class="rms-tag">RMS</span>
+                    {{ ticket.NumeroTicket }}
+                  </span>
+                </td>
+                <td class="muted-cell">{{ ticket.CodeClient }}</td>
+                <td class="client-cell" :title="ticket.Compte">{{ ticket.Compte }}</td>
+                <td class="objet-cell" :title="ticket.Objet">{{ ticket.Objet }}</td>
+                <td><span class="badge-critique">CRITIQUE</span></td>
+                <td class="date-cell urgent-date">{{ formatDate(ticket.DatePromisPour) }}</td>
+                <td class="date-cell">{{ formatDate(ticket.Echeance) }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div v-if="loadingTickets" class="loading">Chargement…</div>
-
-      <p v-else-if="!tickets.length" class="empty">
-        Aucun ticket. Importez d'abord un fichier depuis le chemin ci-dessus.
-      </p>
-
-      <template v-else>
+      <!-- ── Plans d'Action ────────────────────────────────────── -->
+      <div v-if="planTickets.length" class="section-card">
+        <div class="section-header plan-header">
+          <div class="section-header-left">
+            <svg class="section-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 7l2.55 2.4A1 1 0 0116 11H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clip-rule="evenodd"/>
+            </svg>
+            <span class="section-title">Plans d'Action</span>
+            <span class="section-count">{{ planTickets.length }}</span>
+          </div>
+          <button class="link-btn">Voir tout →</button>
+        </div>
         <div class="table-wrapper">
-        <table class="tickets-table">
-          <thead>
-            <tr>
-              <th>Numéro ticket</th>
-              <th class="col-pac">PAC</th>
-              <th class="col-client">Client</th>
-              <th>Objet</th>
-              <th>Priorité</th>
-              <th>Date promis pour</th>
-              <th>Échéance</th>
-            </tr>
-          </thead>
-          <tbody v-for="group in groupedTickets" :key="group.key">
-            <tr class="group-header-row">
-              <td colspan="7">
-                <div class="group-header">
-                  <span class="group-line"></span>
-                  <span class="group-label">
-                    <svg v-if="group.key === 'critique'" class="group-icon" style="color:#dc2626" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
-                    <svg v-else-if="group.key === 'plan'" class="group-icon" style="color:#7c3aed" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 7l2.55 2.4A1 1 0 0116 11H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clip-rule="evenodd"/></svg>
-                    <svg v-else-if="group.key === 'sensible'" class="group-icon" style="color:#d97706" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1a6 6 0 00-3.815 10.631C7.237 12.5 8 13.443 8 14.456v.544a1 1 0 001 1h2a1 1 0 001-1v-.544c0-1.013.762-1.957 1.815-2.825A6 6 0 0010 1zM8.863 17.414a1 1 0 00-.186 1.986l.022.004a8.998 8.998 0 002.604 0l.022-.004a1 1 0 00-.186-1.986 7.002 7.002 0 01-2.276 0z"/></svg>
-                    <svg v-else class="group-icon" style="color:#64748b" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0L10 9.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-                    {{ group.label || 'Autres tickets' }}
-                    <span class="group-count">{{ group.tickets.length }}</span>
-                  </span>
-                  <span class="group-line"></span>
-                </div>
-              </td>
-            </tr>
-            <tr v-for="(ticket, index) in group.tickets" :key="ticket.NumeroTicket || index">
-              <td>
-                <div class="ticket-id">
-                  <span v-if="hasRms(ticket)" class="rms-tag">RMS</span>
-                  <span class="ticket-num">{{ ticket.NumeroTicket }}</span>
-                </div>
-              </td>
-              <td class="col-pac">{{ ticket.CodeClient }}</td>
-              <td class="col-client" :title="ticket.Compte">{{ ticket.Compte }}</td>
-              <td class="col-objet" :title="ticket.Objet">{{ ticket.Objet }}</td>
-              <td class="col-priorite">{{ ticket.Priorite }}</td>
-              <td class="col-date">{{ formatDate(ticket.DatePromisPour) }}</td>
-              <td class="col-date">{{ formatDate(ticket.Echeance) }}</td>
-            </tr>
-          </tbody>
-        </table>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Référence</th>
+                <th>PAC</th>
+                <th>Client</th>
+                <th>Objet</th>
+                <th>Priorité</th>
+                <th>Date promis pour</th>
+                <th>Date prochain traitement</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(ticket, i) in planTickets" :key="ticket.NumeroTicket || i">
+                <td><span class="ref-link plan-ref">{{ ticket.NumeroTicket }}</span></td>
+                <td class="muted-cell">{{ ticket.CodeClient }}</td>
+                <td class="client-cell" :title="ticket.Compte">{{ ticket.Compte }}</td>
+                <td class="objet-cell" :title="ticket.Objet">{{ ticket.Objet }}</td>
+                <td><span class="badge-plan">{{ ticket.Priorite }}</span></td>
+                <td class="date-cell">{{ formatDate(ticket.DatePromisPour) }}</td>
+                <td class="date-cell deadline-cell">{{ formatDate(ticket.Echeance) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Clients Sensibles ─────────────────────────────────── -->
+      <div v-if="sensibleTickets.length" class="section-card">
+        <div class="section-header sensible-header">
+          <div class="section-header-left">
+            <svg class="section-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 1a6 6 0 00-3.815 10.631C7.237 12.5 8 13.443 8 14.456v.544a1 1 0 001 1h2a1 1 0 001-1v-.544c0-1.013.762-1.957 1.815-2.825A6 6 0 0010 1zM8.863 17.414a1 1 0 00-.186 1.986l.022.004a8.998 8.998 0 002.604 0l.022-.004a1 1 0 00-.186-1.986 7.002 7.002 0 01-2.276 0z"/>
+            </svg>
+            <span class="section-title">Clients Sensibles</span>
+            <span class="section-count">{{ sensibleTickets.length }}</span>
+          </div>
+          <button class="link-btn vip-btn">Portail VIP →</button>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Référence</th>
+                <th>PAC</th>
+                <th>Client</th>
+                <th>Objet</th>
+                <th>Priorité</th>
+                <th>Date promis pour</th>
+                <th>Date prochain traitement</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(ticket, i) in sensibleTickets" :key="ticket.NumeroTicket || i">
+                <td><span class="ref-link sensible-ref">{{ ticket.NumeroTicket }}</span></td>
+                <td class="muted-cell">{{ ticket.CodeClient }}</td>
+                <td class="client-cell" :title="ticket.Compte">{{ ticket.Compte }}</td>
+                <td class="objet-cell" :title="ticket.Objet">{{ ticket.Objet }}</td>
+                <td><span class="badge-sensible">{{ ticket.Priorite || "Normal" }}</span></td>
+                <td class="date-cell">{{ formatDate(ticket.DatePromisPour) }}</td>
+                <td class="date-cell">{{ formatDate(ticket.Echeance) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Autres Tickets ────────────────────────────────────── -->
+      <div class="section-card">
+        <div class="section-header others-header">
+          <div class="section-header-left">
+            <svg class="section-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0L10 9.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+            <span class="section-title">Autres Tickets</span>
+          </div>
+          <div class="header-actions">
+            <div class="toolbar-controls">
+              <label class="filter-label" for="sortKey">Trier</label>
+              <select id="sortKey" v-model="sortKey" class="filter-select">
+                <option value="default">Par défaut</option>
+                <option value="Priorite">Priorité</option>
+                <option value="DatePromisPour">Date promis pour</option>
+                <option value="Echeance">Échéance</option>
+              </select>
+              <select id="pageSize" v-model="pageSize" class="filter-select" @change="currentPage = 1">
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+                <option :value="50">50</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        <div class="pagination">
-          <button class="page-btn" :disabled="currentPage === 1" @click="currentPage = 1">«</button>
-          <button class="page-btn" :disabled="currentPage === 1" @click="currentPage--">‹</button>
-          <button
-            v-for="page in visiblePages"
-            :key="page"
-            class="page-btn"
-            :class="{ active: page === currentPage }"
-            @click="currentPage = page"
-          >{{ page }}</button>
-          <button class="page-btn" :disabled="currentPage === totalPages" @click="currentPage++">›</button>
-          <button class="page-btn" :disabled="currentPage === totalPages" @click="currentPage = totalPages">»</button>
-          <span class="page-info">Page {{ currentPage }} / {{ totalPages }}</span>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Référence</th>
+                <th>PAC</th>
+                <th>Client</th>
+                <th>Objet</th>
+                <th>Priorité</th>
+                <th>Date promis pour</th>
+                <th>Date prochain traitement</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(ticket, i) in otherTickets" :key="ticket.NumeroTicket || i">
+                <td>
+                  <span class="ref-link">
+                    <span v-if="hasRms(ticket)" class="rms-tag">RMS</span>
+                    {{ ticket.NumeroTicket }}
+                  </span>
+                </td>
+                <td class="muted-cell">{{ ticket.CodeClient }}</td>
+                <td class="client-cell" :title="ticket.Compte">{{ ticket.Compte }}</td>
+                <td class="objet-cell" :title="ticket.Objet">{{ ticket.Objet }}</td>
+                <td class="muted-cell">{{ ticket.Priorite }}</td>
+                <td class="date-cell">{{ formatDate(ticket.DatePromisPour) }}</td>
+                <td class="date-cell">{{ formatDate(ticket.Echeance) }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      </template>
-    </div>
+
+        <div class="table-footer">
+          <span class="table-footer-count">
+            Affichage de {{ otherTickets.length }} sur {{ total.toLocaleString("fr-FR") }} tickets réguliers
+          </span>
+          <div class="pagination">
+            <button class="page-btn" :disabled="currentPage === 1" @click="currentPage = 1">«</button>
+            <button class="page-btn" :disabled="currentPage === 1" @click="currentPage--">‹</button>
+            <button v-for="page in visiblePages" :key="page" class="page-btn"
+              :class="{ active: page === currentPage }" @click="currentPage = page">
+              {{ page }}
+            </button>
+            <button class="page-btn" :disabled="currentPage === totalPages" @click="currentPage++">›</button>
+            <button class="page-btn" :disabled="currentPage === totalPages" @click="currentPage = totalPages">»</button>
+            <span class="page-info">Page {{ currentPage }} / {{ totalPages }}</span>
+          </div>
+        </div>
+      </div>
+
+    </template>
+
+    <p v-else-if="!loadingTickets" class="empty">
+      Aucun ticket. Importez d'abord un fichier depuis le chemin ci-dessus.
+    </p>
+
   </div>
 </template>
 
@@ -293,21 +429,12 @@ const formatDate = (value) => {
 const hasRms = (ticket) => String(ticket?.IdExterne ?? "").toUpperCase().includes("RMS");
 
 const CRITIQUE_KEYWORDS = ["critique", "critical", "urgent", "urgente", "p1"];
-const isCritique = (ticket) => CRITIQUE_KEYWORDS.includes(String(ticket?.Priorite ?? "").toLowerCase().trim());
+const isCritique = (t) => CRITIQUE_KEYWORDS.includes(String(t?.Priorite ?? "").toLowerCase().trim());
 
-const groupedTickets = computed(() => {
-  const critique = tickets.value.filter(t => isCritique(t));
-  const plan     = tickets.value.filter(t => !isCritique(t) && t.IsPlan);
-  const sensible = tickets.value.filter(t => !isCritique(t) && !t.IsPlan && t.IsSensible);
-  const others   = tickets.value.filter(t => !isCritique(t) && !t.IsPlan && !t.IsSensible);
-
-  const groups = [];
-  if (critique.length) groups.push({ key: "critique", label: "Critique",        tickets: critique });
-  if (plan.length)     groups.push({ key: "plan",     label: "Plan d'action",   tickets: plan });
-  if (sensible.length) groups.push({ key: "sensible", label: "Client sensible", tickets: sensible });
-  if (others.length)   groups.push({ key: "others",   label: null,              tickets: others });
-  return groups;
-});
+const critiqueTickets = computed(() => tickets.value.filter(t => isCritique(t)));
+const planTickets     = computed(() => tickets.value.filter(t => !isCritique(t) && t.IsPlan));
+const sensibleTickets = computed(() => tickets.value.filter(t => !isCritique(t) && !t.IsPlan && t.IsSensible));
+const otherTickets    = computed(() => tickets.value.filter(t => !isCritique(t) && !t.IsPlan && !t.IsSensible));
 
 const visiblePages = computed(() => {
   const pages = [];
@@ -320,20 +447,22 @@ const visiblePages = computed(() => {
 
 <style scoped>
 .dashboard {
-  padding: 28px;
-  background: #ffffff;
-  min-height: 100vh;
+  margin: -24px;
+  padding: 24px;
+  min-height: calc(100% + 48px);
+  background: #f1f5f9;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
+  font-family: Inter, sans-serif;
 }
 
 /* ── Import card ─────────────────────────────────────────────── */
 .import-card {
   background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.07);
-  padding: 20px 24px;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.07);
+  padding: 18px 22px;
   border: 1px solid #e2e8f0;
 }
 
@@ -345,433 +474,364 @@ const visiblePages = computed(() => {
 }
 
 .import-card-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
   background: #1a3a5c;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
+.import-card-icon svg { width: 20px; height: 20px; stroke: #fff; }
 
-.import-card-icon svg {
-  width: 22px;
-  height: 22px;
-  stroke: #ffffff;
-}
-
-.import-card-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.import-card-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0 0 4px;
-}
-
+.import-card-info { flex: 1; min-width: 0; }
+.import-card-title { font-size: 14px; font-weight: 700; color: #0f172a; margin: 0 0 3px; }
 .import-card-path {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #64748b;
-  font-family: monospace;
-  margin: 0;
-  background: #f1f5f9;
-  padding: 3px 10px;
-  border-radius: 6px;
-  width: fit-content;
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; color: #64748b; font-family: monospace; margin: 0;
+  background: #f1f5f9; padding: 2px 8px; border-radius: 5px; width: fit-content;
 }
-
-.path-icon svg {
-  width: 14px;
-  height: 14px;
-  stroke: #94a3b8;
-  display: block;
-}
+.path-icon svg { width: 13px; height: 13px; stroke: #94a3b8; display: block; }
 
 .import-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: #1a3a5c;
-  color: #ffffff;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; background: #1a3a5c; color: #fff;
+  border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
   transition: background 0.2s, transform 0.15s;
-  box-shadow: 0 4px 12px rgba(26, 58, 92, 0.25);
+  box-shadow: 0 3px 10px rgba(26, 58, 92, 0.22);
 }
+.import-btn svg { width: 17px; height: 17px; stroke: #fff; flex-shrink: 0; }
+.import-btn:hover:not(:disabled) { background: #2e5f8a; transform: translateY(-1px); }
+.import-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
-.import-btn svg {
-  width: 18px;
-  height: 18px;
-  stroke: #ffffff;
-  flex-shrink: 0;
-}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
 
-.import-btn:hover:not(:disabled) {
-  background: #2e5f8a;
-  transform: translateY(-1px);
-}
-
-.import-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-.import-progress {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.progress-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.progress-msg {
-  font-size: 13px;
-  color: #64748b;
-}
-
-.progress-pct {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1a3a5c;
-}
-
+.import-progress { margin-top: 16px; padding-top: 14px; border-top: 1px solid #f1f5f9; }
+.progress-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.progress-msg { font-size: 12px; color: #64748b; }
+.progress-pct { font-size: 13px; font-weight: 700; color: #1a3a5c; }
 .progress-pct.done { color: #16a34a; }
 .progress-pct.error { color: #dc2626; }
+.progress-track { height: 7px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+.progress-bar { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #1a3a5c, #2e5f8a); transition: width 0.3s ease; }
+.progress-bar.done { background: linear-gradient(90deg, #16a34a, #22c55e); }
+.progress-bar.error { background: #dc2626; }
+.import-success { display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 12px; color: #16a34a; }
+.import-success svg { width: 15px; height: 15px; fill: #16a34a; flex-shrink: 0; }
+.import-error { margin-top: 8px; font-size: 12px; color: #dc2626; }
 
-.progress-track {
-  height: 8px;
-  background: #e2e8f0;
-  border-radius: 999px;
-  overflow: hidden;
+/* ── Stats row ───────────────────────────────────────────────── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
 }
 
-.progress-bar {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #1a3a5c, #2e5f8a);
-  transition: width 0.3s ease;
-  box-shadow: 0 0 8px rgba(26, 58, 92, 0.3);
+.stat-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
 }
 
-.progress-bar.done {
-  background: linear-gradient(90deg, #16a34a, #22c55e);
-  box-shadow: 0 0 8px rgba(22, 163, 74, 0.35);
+.stat-card--critical {
+  background: #7f1d1d;
+  border-color: #991b1b;
+  color: #fff;
 }
 
-.progress-bar.error {
-  background: #dc2626;
-  box-shadow: none;
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  margin: 0 0 6px;
 }
+.stat-card--critical .stat-label { color: rgba(255,255,255,0.65); }
 
-.import-success {
+.stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.stat-card--critical .stat-value { color: #fff; }
+
+.stat-sub {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  font-size: 13px;
-  color: #16a34a;
+  gap: 4px;
+  font-size: 11px;
+  color: #fca5a5;
+  margin: 0;
 }
+.stat-sub.muted { color: #94a3b8; }
+.stat-sub svg { width: 10px; height: 10px; flex-shrink: 0; }
 
-.import-success svg {
-  width: 16px;
-  height: 16px;
-  fill: #16a34a;
-  flex-shrink: 0;
-}
-
-.import-error {
-  margin-top: 10px;
-  font-size: 13px;
-  color: #dc2626;
-}
-
-/* ── Backlog section ─────────────────────────────────────────── */
-.backlog-section {
-  padding: 0;
+/* ── Section cards ───────────────────────────────────────────── */
+.section-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
 }
 
 .section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: #0f172a;
-  margin: 0;
 }
 
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.total-badge {
-  font-size: 13px;
-  color: #64748b;
+.section-count {
+  font-size: 11px;
+  font-weight: 700;
   background: #f1f5f9;
-  padding: 4px 10px;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
   border-radius: 99px;
+  padding: 1px 8px;
 }
 
-.filter-label {
-  font-weight: 600;
-  color: #243b53;
-  font-size: 13px;
+/* Critique header */
+.critique-header { background: #fff7f7; border-bottom-color: #fecaca; }
+.critique-header .section-icon { color: #dc2626; }
+.critique-header .section-title { color: #991b1b; }
+
+/* Plan header */
+.plan-header { background: #fff7ed; border-bottom-color: #fed7aa; }
+.plan-header .section-icon { color: #ea580c; }
+.plan-header .section-title { color: #9a3412; }
+
+/* Sensible header */
+.sensible-header { background: #fffbeb; border-bottom-color: #fde68a; }
+.sensible-header .section-icon { color: #d97706; }
+.sensible-header .section-title { color: #92400e; }
+
+/* Others header */
+.others-header { background: #f8fafc; border-bottom-color: #e2e8f0; }
+.others-header .section-icon { color: #64748b; }
+
+/* ── Badges ──────────────────────────────────────────────────── */
+.badge-urgent {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #dc2626;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  padding: 1px 6px;
 }
 
-.filter-select {
-  padding: 6px 10px;
-  border: 1px solid #cbd5e0;
-  border-radius: 6px;
-  background: #ffffff;
-  font-size: 13px;
-}
-
-.ticket-id {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.rms-tag {
+.badge-critique {
   font-size: 10px;
   font-weight: 700;
-  color: #d14343;
-  letter-spacing: 0.4px;
-  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #fff;
+  background: #dc2626;
+  border-radius: 4px;
+  padding: 2px 7px;
 }
 
-.loading {
-  text-align: center;
-  padding: 40px;
-  color: #94a3b8;
-  font-size: 14px;
+.badge-plan {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9a3412;
+  background: #ffedd5;
+  border-radius: 4px;
+  padding: 2px 7px;
 }
 
-.empty {
-  color: #94a3b8;
-  font-size: 14px;
-  padding: 20px 0;
+.badge-sensible {
+  font-size: 11px;
+  font-weight: 600;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 4px;
+  padding: 2px 7px;
 }
 
-.tickets-table {
+/* ── Table ───────────────────────────────────────────────────── */
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  height: 5px;
+}
+.table-wrapper::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 99px;
+}
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 99px;
+}
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #1a3a5c;
+}
+
+.data-table {
   width: 100%;
   border-collapse: collapse;
-  background: #ffffff;
+  table-layout: fixed;
 }
 
-.tickets-table th,
-.tickets-table td {
-  border-bottom: 1px solid #f1f5f9;
-  border-right: 1px solid #f1f5f9;
-  padding: 6px 14px;
+.data-table thead th {
+  padding: 8px 14px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #94a3b8;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
   text-align: left;
+  white-space: nowrap;
+}
+
+/* Largeurs proportionnelles identiques pour tous les tableaux */
+.data-table thead th:nth-child(1) { width: 14%; min-width: 150px; }  /* Référence */
+.data-table thead th:nth-child(2) { width: 9%;  min-width:  90px; }  /* PAC */
+.data-table thead th:nth-child(3) { width: 14%; min-width: 140px; }  /* Client */
+.data-table thead th:nth-child(4) { width: 25%; min-width: 180px; }  /* Objet */
+.data-table thead th:nth-child(5) { width: 10%; min-width: 100px; }  /* Priorité */
+.data-table thead th:nth-child(6) { width: 14%; min-width: 130px; }  /* Date promis pour */
+.data-table thead th:nth-child(7) { width: 14%; min-width: 160px; }  /* Date prochain traitement */
+
+.data-table tbody td {
+  padding: 9px 14px;
+  font-size: 14px;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
 }
 
-.tickets-table th:last-child,
-.tickets-table td:last-child {
-  border-right: none;
-}
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover { background: #f8fafc; }
 
-.tickets-table thead th {
-  border-bottom: 2px solid #e2e8f0;
-  font-size: 11px;
+.ref-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: #94a3b8;
-  padding: 6px 14px;
-  background: #ffffff;
-  white-space: nowrap;
+  font-size: 14px;
+  color: #1a3a5c;
+  font-variant-numeric: tabular-nums;
 }
 
-.tickets-table tbody tr {
-  transition: background 0.12s ease;
+.plan-ref { color: #9a3412; }
+.sensible-ref { color: #92400e; }
+
+.rms-tag {
+  font-size: 9px;
+  font-weight: 800;
+  color: #dc2626;
+  letter-spacing: 0.4px;
 }
 
-.tickets-table tbody tr:not(.group-header-row):hover { background: #f8fafc; }
+.muted-cell { color: #64748b; font-size: 13px; }
+.client-cell { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.objet-cell { max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #334155; }
+.date-cell { white-space: nowrap; color: #64748b; font-size: 13px; font-variant-numeric: tabular-nums; }
+.urgent-date { color: #dc2626; font-weight: 600; }
+.deadline-cell { font-weight: 600; color: #334155; }
 
-.tickets-table tbody tr:last-child td {
-  border-bottom: none;
+/* ── Link / action buttons ───────────────────────────────────── */
+.link-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a3a5c;
+  background: none;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
 }
+.link-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
 
-.group-header-row td {
-  padding: 16px 0 6px !important;
-  border: none !important;
-  background: transparent !important;
-}
+.vip-btn { color: #92400e; border-color: #fde68a; }
+.vip-btn:hover { background: #fef9ee; }
 
-.group-header {
+/* ── Toolbar in others header ────────────────────────────────── */
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.toolbar-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.filter-label { font-size: 12px; font-weight: 600; color: #64748b; }
+.filter-select { padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 6px; background: #fff; font-size: 12px; color: #334155; }
+
+/* ── Table footer ────────────────────────────────────────────── */
+.table-footer {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-.group-line {
-  flex: 1;
-  height: 1px;
-  background: #e2e8f0;
-}
-
-.group-line:first-child {
-  display: none;
-}
-
-.group-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: #64748b;
-  white-space: nowrap;
-}
-
-.group-icon {
-  width: 13px;
-  height: 13px;
-  color: #64748b;
-  flex-shrink: 0;
-}
-
-.group-count {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 99px;
-  padding: 1px 7px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #64748b;
-}
-
-.tickets-table tbody td {
-  color: #1e293b;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.ticket-num {
-  font-weight: 600;
-  font-size: 13px;
-  color: #0f172a;
-  font-variant-numeric: tabular-nums;
-}
-
-.col-pac {
-  width: 110px;
-  white-space: nowrap;
-  color: #64748b;
+.table-footer-count {
   font-size: 12px;
-}
-
-.col-client {
-  max-width: 180px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.col-objet {
-  max-width: 260px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #334155;
-}
-
-.col-priorite {
-  white-space: nowrap;
-  color: #64748b;
-  font-size: 12px;
-}
-
-.col-date {
-  white-space: nowrap;
-  color: #64748b;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
+  color: #94a3b8;
 }
 
 .pagination {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 20px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 
 .page-btn {
-  min-width: 34px;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid #cbd5e0;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #e2e8f0;
   border-radius: 6px;
-  background: #ffffff;
+  background: #fff;
   color: #334155;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
+.page-btn:hover:not(:disabled) { background: #eef2ff; border-color: #1a3a5c; color: #1a3a5c; }
+.page-btn.active { background: #1a3a5c; border-color: #1a3a5c; color: #fff; font-weight: 700; }
+.page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.page-info { font-size: 12px; color: #94a3b8; margin-left: 4px; }
 
-.page-btn:hover:not(:disabled) {
-  background: #dce8f5;
-  border-color: #1a3a5c;
-  color: #1a3a5c;
-}
-
-.page-btn.active {
-  background: #1a3a5c;
-  border-color: #1a3a5c;
-  color: #ffffff;
-  font-weight: 700;
-}
-
-.page-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.page-info {
-  font-size: 13px;
-  color: #64748b;
-  margin-left: 8px;
-}
+/* ── States ──────────────────────────────────────────────────── */
+.loading { text-align: center; padding: 48px; color: #94a3b8; font-size: 14px; }
+.empty { color: #94a3b8; font-size: 14px; padding: 20px 0; text-align: center; }
 </style>

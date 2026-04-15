@@ -22,6 +22,18 @@ exports.getEvents = (req, res) => {
   res.json(rows.map(toEvent));
 };
 
+exports.getTodayForUser = (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const userId = req.user.userId;
+  const rows = db.prepare(`
+    SELECT * FROM permanences
+    WHERE owner_id = ?
+      AND DATE(start) <= ? AND DATE(end) >= ?
+    ORDER BY start
+  `).all(userId, today, today);
+  res.json(rows.map(toEvent));
+};
+
 exports.createEvent = (req, res) => {
   const { id, title, start, end, allDay, extendedProps } = req.body;
   if (!id || !title || !start) return res.status(400).json({ message: "id, title et start requis" });

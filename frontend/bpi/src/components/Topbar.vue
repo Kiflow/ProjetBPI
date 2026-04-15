@@ -4,6 +4,10 @@
       {{ pageTitle }}
     </div>
     <div class="user-info">
+      <div v-if="onPermanence" class="perm-alert">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clip-rule="evenodd"/></svg>
+        Vous êtes de permanence
+      </div>
       <span>{{ displayName }}</span>
       <button class="icon-button" type="button" @click="toggleProfile">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
@@ -67,6 +71,7 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import { useRoute } from "vue-router";
+import api from "../services/api";
 
 const route = useRoute();
 
@@ -82,19 +87,33 @@ const loadUser = () => {
 
 const user = ref(loadUser());
 const showProfile = ref(false);
+const onPermanence = ref(false);
+
+const checkPermanence = async () => {
+  try {
+    const res = await api.get("/permanences/today");
+    const events = res.data || [];
+    onPermanence.value = events.length > 0;
+  } catch {}
+};
 
 const syncUser = () => {
   user.value = loadUser();
 };
 
+let permInterval = null;
+
 onMounted(() => {
   window.addEventListener("auth-changed", syncUser);
   window.addEventListener("storage", syncUser);
+  checkPermanence();
+  permInterval = setInterval(checkPermanence, 5 * 60 * 1000);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("auth-changed", syncUser);
   window.removeEventListener("storage", syncUser);
+  clearInterval(permInterval);
 });
 
 const displayName = computed(() => {
@@ -162,6 +181,25 @@ const closeProfile = () => {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.2px;
+}
+
+.perm-alert {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fbbf24;
+  white-space: nowrap;
+}
+.perm-alert svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .user-info {

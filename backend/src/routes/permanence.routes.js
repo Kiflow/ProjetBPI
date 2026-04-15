@@ -5,6 +5,7 @@ const ctrl = require("../controllers/permanence.controller");
 
 router.use(auth);
 
+router.get("/today", ctrl.getTodayForUser);
 router.get("/", ctrl.getEvents);
 router.post("/", ctrl.createEvent);
 router.patch("/:id/tickets", ctrl.updateTickets);
