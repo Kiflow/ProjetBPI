@@ -51,7 +51,7 @@ const readInterlocuteurs = () => {
   const mapped = rows.map((row) => ({
     nom:            String(row["Nom"]                                      ?? "").trim(),
     prenom:         String(row["Prénom"]  ?? row["Prenom"]                 ?? "").trim(),
-    intitule_poste: String(row["Intitulé poste"] ?? row["Intitule poste"]  ?? "").trim(),
+    intitule_poste: String(row["Intitulé Poste"] ?? row["Intitulé poste"] ?? row["Intitule Poste"] ?? row["Intitule poste"] ?? "").trim(),
     compte:         String(row["Compte"]                                    ?? "").trim(),
     client_num:     String(row["Client #"]                                  ?? "").trim(),
     code_client:    String(row["Code Client"] ?? row["Code client"]          ?? "").trim(),
