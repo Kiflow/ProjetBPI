@@ -22,7 +22,7 @@ const decodeBuffer = (buffer) => {
     return buffer.swap16().toString("utf16le").replace(/^\uFEFF/, "");
   // UTF-8 avec BOM (EF BB BF)
   if (buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF)
-    return buffer.toString("utf8").slice(3);
+    return buffer.toString("utf8").replace(/^\uFEFF/, "");
   // UTF-8 valide sans BOM
   const utf8 = buffer.toString("utf8");
   if (!utf8.includes("\uFFFD")) return utf8;
@@ -57,15 +57,29 @@ const readInterlocuteurs = () => {
     code_client:    String(row["Code client"]                               ?? "").trim(),
     statut:         String(row["Statut"]                                    ?? "").trim(),
   }));
+  console.log("[interlocuteurs] [1] Total lignes mappées :", mapped.length);
 
-  const filtered = mapped.filter((r) => r.nom && r.prenom && r.code_client && r.statut.toLowerCase() === "actif");
-  console.log("[interlocuteurs] Après filtre Actif :", filtered.length, "/ total mappé :", mapped.length);
-  if (mapped.length > 0 && filtered.length === 0) {
-    console.warn("[interlocuteurs] Aucun passé le filtre. Statuts trouvés :", [...new Set(mapped.map(r => `"${r.statut}"`))]);
-    console.warn("[interlocuteurs] Code clients trouvés :", [...new Set(mapped.map(r => `"${r.code_client}"`))]);
+  // Filtre 1 : nom présent
+  const avecNom = mapped.filter(r => r.nom);
+  console.log("[interlocuteurs] [2] Avec nom non vide :", avecNom.length, "| Sans nom :", mapped.length - avecNom.length);
+
+  // Filtre 2 : prénom présent
+  const avecPrenom = avecNom.filter(r => r.prenom);
+  console.log("[interlocuteurs] [3] Avec prénom non vide :", avecPrenom.length, "| Sans prénom :", avecNom.length - avecPrenom.length);
+
+  // Filtre 3 : code_client présent
+  const avecCode = avecPrenom.filter(r => r.code_client);
+  console.log("[interlocuteurs] [4] Avec code_client non vide :", avecCode.length, "| Sans code :", avecPrenom.length - avecCode.length);
+
+  // Filtre 4 : statut Actif
+  const actifs = avecCode.filter(r => r.statut.toLowerCase() === "actif");
+  console.log("[interlocuteurs] [5] Avec statut Actif :", actifs.length, "| Statuts trouvés :", [...new Set(avecCode.map(r => JSON.stringify(r.statut)))]);
+
+  if (actifs.length === 0 && mapped.length > 0) {
+    console.warn("[interlocuteurs] Aucun résultat final. Code clients dans CSV :", [...new Set(mapped.map(r => JSON.stringify(r.code_client)))]);
   }
 
-  return filtered;
+  return actifs;
 };
 
 module.exports = { readInterlocuteurs };
