@@ -54,7 +54,7 @@ const readInterlocuteurs = () => {
     intitule_poste: String(row["Intitulé poste"] ?? row["Intitule poste"]  ?? "").trim(),
     compte:         String(row["Compte"]                                    ?? "").trim(),
     client_num:     String(row["Client #"]                                  ?? "").trim(),
-    code_client:    String(row["Code client"]                               ?? "").trim(),
+    code_client:    String(row["Code Client"] ?? row["Code client"]          ?? "").trim(),
     statut:         String(row["Statut"]                                    ?? "").trim(),
   }));
   console.log("[interlocuteurs] [1] Total lignes mappées :", mapped.length);
