@@ -48,10 +48,16 @@ exports.getInterlocuteurs = (req, res) => {
     .get(req.params.clientId);
   if (!client) return res.status(404).json({ message: "Client introuvable." });
 
+  console.log("[habilitation] getInterlocuteurs pour client :", client.compte, "| code_client :", `"${client.code_client}"`);
+
   const all = readInterlocuteurs();
+  console.log("[habilitation] Total interlocuteurs dans CSV :", all.length);
+  console.log("[habilitation] Code clients dans CSV :", [...new Set(all.map(i => `"${i.code_client}"`))]);
+
   const csvRows = all.filter(
     (i) => i.code_client.toLowerCase() === client.code_client.toLowerCase()
   );
+  console.log("[habilitation] Interlocuteurs matchés pour code", `"${client.code_client}"`, ":", csvRows.length);
 
   // Enrichit avec le statut chef_de_file stocké en DB
   const chefs = db
