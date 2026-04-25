@@ -1,12 +1,9 @@
 const Database = require("better-sqlite3");
-const path = require("path");
 const fs = require("fs");
+const { DATA_DIR, DB_PATH } = require("../config/paths");
 
-const DB_DIR = path.join(__dirname, "../../data");
-const DB_PATH = path.join(DB_DIR, "app.db");
-
-if (!fs.existsSync(DB_DIR)) {
-  fs.mkdirSync(DB_DIR, { recursive: true });
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
 const db = new Database(DB_PATH);
@@ -158,6 +155,27 @@ db.exec(`
   );
 `);
 
+// ── Habilitation ─────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS habilitation_clients (
+    id TEXT PRIMARY KEY,
+    code_client TEXT NOT NULL,
+    compte TEXT NOT NULL,
+    client_num TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS habilitation_chefs_de_file (
+    id TEXT PRIMARY KEY,
+    habilitation_client_id TEXT NOT NULL,
+    nom TEXT NOT NULL,
+    prenom TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(habilitation_client_id, nom, prenom),
+    FOREIGN KEY (habilitation_client_id) REFERENCES habilitation_clients(id) ON DELETE CASCADE
+  );
+`);
+
 // Migration : ajout de template_id sur subjects
 try {
   db.exec(`ALTER TABLE subjects ADD COLUMN template_id TEXT NOT NULL DEFAULT ''`);
@@ -166,6 +184,14 @@ try {
 // Migration : ajout de login_adesi si la table existait déjà sans cette colonne
 try {
   db.exec(`ALTER TABLE tickets ADD COLUMN login_adesi TEXT NOT NULL DEFAULT ''`);
+} catch { /* colonne déjà présente */ }
+
+// Migration : ajout de nom et prenom sur tickets
+try {
+  db.exec(`ALTER TABLE tickets ADD COLUMN nom TEXT NOT NULL DEFAULT ''`);
+} catch { /* colonne déjà présente */ }
+try {
+  db.exec(`ALTER TABLE tickets ADD COLUMN prenom TEXT NOT NULL DEFAULT ''`);
 } catch { /* colonne déjà présente */ }
 
 // Migration : suppression des colonnes couleur de permanences (recréation de la table)

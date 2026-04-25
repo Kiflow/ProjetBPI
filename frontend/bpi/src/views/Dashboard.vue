@@ -19,7 +19,7 @@
                   d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
               </svg>
             </span>
-            backend/data/tickets.csv — .xlsx
+            {{ dataDir }}/tickets.xlsx
           </p>
         </div>
         <button type="button" class="import-btn" :disabled="importing" @click="importFromServer">
@@ -109,6 +109,7 @@
                 <th>Priorité</th>
                 <th>Date promis pour</th>
                 <th>Date prochain traitement</th>
+                <th>Habilitation</th>
               </tr>
             </thead>
             <tbody>
@@ -125,6 +126,7 @@
                 <td><span class="badge-critique">CRITIQUE</span></td>
                 <td class="date-cell urgent-date">{{ formatDate(ticket.DatePromisPour) }}</td>
                 <td class="date-cell">{{ formatDate(ticket.Echeance) }}</td>
+                <td><span v-if="habStatus(ticket) === 'chef'" class="hab-badge chef">Chef de file</span><span v-else-if="habStatus(ticket) === 'hab'" class="hab-badge hab">Habilitation</span></td>
               </tr>
             </tbody>
           </table>
@@ -154,6 +156,7 @@
                 <th>Priorité</th>
                 <th>Date promis pour</th>
                 <th>Date prochain traitement</th>
+                <th>Habilitation</th>
               </tr>
             </thead>
             <tbody>
@@ -165,6 +168,7 @@
                 <td><span class="badge-plan">{{ ticket.Priorite }}</span></td>
                 <td class="date-cell">{{ formatDate(ticket.DatePromisPour) }}</td>
                 <td class="date-cell deadline-cell">{{ formatDate(ticket.Echeance) }}</td>
+                <td><span v-if="habStatus(ticket) === 'chef'" class="hab-badge chef">Chef de file</span><span v-else-if="habStatus(ticket) === 'hab'" class="hab-badge hab">Habilitation</span></td>
               </tr>
             </tbody>
           </table>
@@ -194,6 +198,7 @@
                 <th>Priorité</th>
                 <th>Date promis pour</th>
                 <th>Date prochain traitement</th>
+                <th>Habilitation</th>
               </tr>
             </thead>
             <tbody>
@@ -205,6 +210,7 @@
                 <td><span class="badge-sensible">{{ ticket.Priorite || "Normal" }}</span></td>
                 <td class="date-cell">{{ formatDate(ticket.DatePromisPour) }}</td>
                 <td class="date-cell">{{ formatDate(ticket.Echeance) }}</td>
+                <td><span v-if="habStatus(ticket) === 'chef'" class="hab-badge chef">Chef de file</span><span v-else-if="habStatus(ticket) === 'hab'" class="hab-badge hab">Habilitation</span></td>
               </tr>
             </tbody>
           </table>
@@ -249,6 +255,7 @@
                 <th>Priorité</th>
                 <th>Date promis pour</th>
                 <th>Date prochain traitement</th>
+                <th>Habilitation</th>
               </tr>
             </thead>
             <tbody>
@@ -265,6 +272,7 @@
                 <td class="muted-cell">{{ ticket.Priorite }}</td>
                 <td class="date-cell">{{ formatDate(ticket.DatePromisPour) }}</td>
                 <td class="date-cell">{{ formatDate(ticket.Echeance) }}</td>
+                <td><span v-if="habStatus(ticket) === 'chef'" class="hab-badge chef">Chef de file</span><span v-else-if="habStatus(ticket) === 'hab'" class="hab-badge hab">Habilitation</span></td>
               </tr>
             </tbody>
           </table>
@@ -300,6 +308,38 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import api from "../services/api";
+
+const dataDir = import.meta.env.VITE_DATA_DIR || "./data";
+
+// ── Habilitation ────────────────────────────────────────────────
+const chefsDeFile = ref([]); // [{ code_client, nom, prenom }]
+
+const loadChefsDeFile = async () => {
+  try {
+    const res = await api.get("/habilitation/chefs-de-file");
+    chefsDeFile.value = res.data || [];
+  } catch {}
+};
+
+// Ensemble des code_client gérés par habilitation
+const habClientCodes = computed(() =>
+  new Set(chefsDeFile.value.map(c => String(c.code_client).trim().toLowerCase()))
+);
+
+// Retourne null | "chef" | "hab" pour un ticket
+const habStatus = (ticket) => {
+  const code = String(ticket.CodeClient || "").trim().toLowerCase();
+  if (!habClientCodes.value.has(code)) return null;
+
+  const tNom    = String(ticket.Nom    || "").trim().toLowerCase();
+  const tPrenom = String(ticket.Prenom || "").trim().toLowerCase();
+  const hasMatch = chefsDeFile.value.some(c =>
+    String(c.code_client).trim().toLowerCase() === code &&
+    String(c.nom).trim().toLowerCase()    === tNom &&
+    String(c.prenom).trim().toLowerCase() === tPrenom
+  );
+  return hasMatch ? "chef" : "hab";
+};
 
 // ── Import ──────────────────────────────────────────────────────
 const importing = ref(false);
@@ -394,7 +434,7 @@ const fetchPage = async () => {
   }
 };
 
-onMounted(fetchPage);
+onMounted(() => { fetchPage(); loadChefsDeFile(); });
 watch(currentPage, fetchPage);
 watch([pageSize, sortKey], () => { currentPage.value = 1; fetchPage(); });
 
@@ -721,13 +761,35 @@ const visiblePages = computed(() => {
 }
 
 /* Largeurs proportionnelles identiques pour tous les tableaux */
-.data-table thead th:nth-child(1) { width: 14%; min-width: 150px; }  /* Référence */
-.data-table thead th:nth-child(2) { width: 9%;  min-width:  90px; }  /* PAC */
-.data-table thead th:nth-child(3) { width: 14%; min-width: 140px; }  /* Client */
-.data-table thead th:nth-child(4) { width: 25%; min-width: 180px; }  /* Objet */
-.data-table thead th:nth-child(5) { width: 10%; min-width: 100px; }  /* Priorité */
-.data-table thead th:nth-child(6) { width: 14%; min-width: 130px; }  /* Date promis pour */
-.data-table thead th:nth-child(7) { width: 14%; min-width: 160px; }  /* Date prochain traitement */
+.data-table thead th:nth-child(1) { width: 13%; min-width: 150px; }  /* Référence */
+.data-table thead th:nth-child(2) { width: 8%;  min-width:  90px; }  /* PAC */
+.data-table thead th:nth-child(3) { width: 13%; min-width: 140px; }  /* Client */
+.data-table thead th:nth-child(4) { width: 22%; min-width: 180px; }  /* Objet */
+.data-table thead th:nth-child(5) { width: 9%;  min-width: 100px; }  /* Priorité */
+.data-table thead th:nth-child(6) { width: 12%; min-width: 130px; }  /* Date promis pour */
+.data-table thead th:nth-child(7) { width: 13%; min-width: 160px; }  /* Date prochain traitement */
+.data-table thead th:nth-child(8) { width: 10%; min-width: 110px; white-space: nowrap; }  /* Habilitation */
+
+.hab-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+.hab-badge.chef {
+  color: #15803d;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+}
+.hab-badge.hab {
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+}
 
 .data-table tbody td {
   padding: 9px 14px;

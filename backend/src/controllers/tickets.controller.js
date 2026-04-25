@@ -40,7 +40,9 @@ const mapRow = (r) => ({
   ClassificationBU: r.classification_bu,
   LoginAdesi: r.login_adesi,
   IsSensible: Boolean(r.is_sensible),
-  IsPlan: Boolean(r.is_plan)
+  IsPlan: Boolean(r.is_plan),
+  Nom: r.nom || "",
+  Prenom: r.prenom || ""
 });
 
 // --- RMS helpers ---

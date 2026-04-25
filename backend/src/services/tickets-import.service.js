@@ -46,7 +46,9 @@ const mapRow = (row) => ({
   statut: String(row.Statut ?? row.statut ?? row.Status ?? row.status ?? "").trim(),
   categorie: String(row["Catégorie"] ?? row.Categorie ?? row.categorie ?? "").trim(),
   classification_bu: String(row["Classification BU"] ?? row.ClassificationBU ?? "").trim(),
-  login_adesi: String(row["Login ADESI"] ?? row["Login Adesi"] ?? row["login_adesi"] ?? "").trim()
+  login_adesi: String(row["Login ADESI"] ?? row["Login Adesi"] ?? row["login_adesi"] ?? "").trim(),
+  nom:    String(row["Nom"]    ?? row["nom"]    ?? "").trim(),
+  prenom: String(row["Prénom"] ?? row["Prenom"] ?? row["prenom"] ?? "").trim()
 });
 
 const BATCH_SIZE = 500;
@@ -118,10 +120,12 @@ const importTickets = async (onProgress) => {
   const insert = db.prepare(`
     INSERT INTO tickets
       (numero_ticket, objet, priorite, priorite_rms, date_promis_pour, echeance,
-       id_externe, code_client, compte, proprietaire, statut, categorie, classification_bu, login_adesi)
+       id_externe, code_client, compte, proprietaire, statut, categorie, classification_bu, login_adesi,
+       nom, prenom)
     VALUES
       (@numero_ticket, @objet, @priorite, @priorite_rms, @date_promis_pour, @echeance,
-       @id_externe, @code_client, @compte, @proprietaire, @statut, @categorie, @classification_bu, @login_adesi)
+       @id_externe, @code_client, @compte, @proprietaire, @statut, @categorie, @classification_bu, @login_adesi,
+       @nom, @prenom)
   `);
 
   db.prepare("DELETE FROM tickets").run();

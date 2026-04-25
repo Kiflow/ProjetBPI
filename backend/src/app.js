@@ -16,6 +16,7 @@ const suiviRoutes = require("./routes/suivi.routes");
 const importRoutes = require("./routes/import.routes");
 const subjectsRoutes = require("./routes/subjects.routes");
 const subjectTemplatesRoutes = require("./routes/subject-templates.routes");
+const habilitationRoutes = require("./routes/habilitation.routes");
 const cron = require("node-cron");
 const { importTickets } = require("./services/tickets-import.service");
 
@@ -37,6 +38,7 @@ app.use("/api/suivi", suiviRoutes);
 app.use("/api/import", importRoutes);
 app.use("/api/subjects", subjectsRoutes);
 app.use("/api/subject-templates", subjectTemplatesRoutes);
+app.use("/api/habilitation", habilitationRoutes);
 
 // Import automatique tous les jours à 6h00
 cron.schedule("0 6 * * *", () => {

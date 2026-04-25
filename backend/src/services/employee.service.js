@@ -1,7 +1,5 @@
 const fs = require("fs");
-const path = require("path");
-
-const DATA_PATH = path.join(__dirname, "..", "..", "data", "employees.csv");
+const { EMPLOYEES_PATH: DATA_PATH } = require("../config/paths");
 
 const normalizeHeader = (value) =>
   value

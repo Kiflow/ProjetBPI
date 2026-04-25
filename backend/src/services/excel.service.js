@@ -1,9 +1,8 @@
 const xlsx = require("xlsx");
-const path = require("path");
+const { TICKETS_PATH } = require("../config/paths");
 
 exports.readTickets = () => {
-  const filePath = path.join(__dirname, "../data/tickets.xlsx");
-  const workbook = xlsx.readFile(filePath);
+  const workbook = xlsx.readFile(TICKETS_PATH);
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   return xlsx.utils.sheet_to_json(sheet);
 };
