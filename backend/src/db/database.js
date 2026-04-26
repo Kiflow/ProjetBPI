@@ -176,6 +176,11 @@ db.exec(`
   );
 `);
 
+// Migration : ajout de bu sur habilitation_clients
+try {
+  db.exec(`ALTER TABLE habilitation_clients ADD COLUMN bu TEXT NOT NULL DEFAULT ''`);
+} catch { /* colonne déjà présente */ }
+
 // Migration : ajout de template_id sur subjects
 try {
   db.exec(`ALTER TABLE subjects ADD COLUMN template_id TEXT NOT NULL DEFAULT ''`);

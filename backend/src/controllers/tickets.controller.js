@@ -1,5 +1,6 @@
 const { readTickets } = require("../services/excel.service");
 const db = require("../db/database");
+const { readClients } = require("../services/clients.service");
 
 exports.getTickets = (req, res) => {
   const tickets = readTickets();
@@ -84,10 +85,15 @@ exports.getRmsTickets = (req, res) => {
   const page    = Math.max(1, parseInt(req.query.page) || 1);
   const limit   = [10, 20, 50].includes(parseInt(req.query.limit)) ? parseInt(req.query.limit) : 20;
   const handler = req.query.handler || "all";
-  const bu      = req.query.bu ? String(req.query.bu).split(",").filter(Boolean) : [];
+  const buSelected = req.query.bu ? String(req.query.bu).split(",").filter(Boolean) : [];
   const offset  = (page - 1) * limit;
+  const mine    = req.query.mine === "true";
 
-  const mine = req.query.mine === "true";
+  // Construire la map code_client → bu depuis le CSV
+  let clientBuMap = new Map();
+  try {
+    readClients().forEach(c => clientBuMap.set(c.pac.toLowerCase(), c.bu));
+  } catch {}
 
   const conditions = ["id_externe LIKE '%RMS%'"];
   const params = [];
@@ -103,26 +109,39 @@ exports.getRmsTickets = (req, res) => {
     params.push(req.user.userId);
   }
 
-  if (bu.length) {
-    const placeholders = bu.map(() => "?").join(", ");
-    conditions.push(`classification_bu IN (${placeholders})`);
-    params.push(...bu);
+  // Filtre BU : trouver les code_client dont le bu correspond
+  if (buSelected.length) {
+    const buSet = new Set(buSelected.map(b => b.toLowerCase()));
+    const matchingCodes = [...clientBuMap.entries()]
+      .filter(([, bu]) => buSet.has((bu || "").toLowerCase()))
+      .map(([pac]) => pac);
+
+    if (matchingCodes.length) {
+      const placeholders = matchingCodes.map(() => "LOWER(code_client) = ?").join(" OR ");
+      conditions.push(`(${placeholders})`);
+      params.push(...matchingCodes);
+    } else {
+      // Aucun client ne correspond → aucun résultat
+      return res.json({ tickets: [], total: 0, page, limit, buOptions: [] });
+    }
   }
 
   const where = `WHERE ${conditions.join(" AND ")}`;
-
   const total = db.prepare(`SELECT COUNT(*) as n FROM tickets ${where}`).get(...params).n;
   const rows  = db.prepare(`SELECT * FROM tickets ${where} ORDER BY id LIMIT ? OFFSET ?`).all(...params, limit, offset);
 
-  const buOptions = db.prepare(
-    "SELECT DISTINCT classification_bu FROM tickets WHERE id_externe LIKE '%RMS%' AND classification_bu != '' ORDER BY classification_bu"
-  ).all().map((r) => r.classification_bu);
+  // BU options : tous les BU distincts des clients ayant au moins un ticket RMS
+  const rmsCodeClients = db.prepare(
+    "SELECT DISTINCT LOWER(code_client) AS code FROM tickets WHERE id_externe LIKE '%RMS%'"
+  ).all().map(r => r.code);
+  const rmsCodeSet = new Set(rmsCodeClients);
+  const buOptions = [...new Set(
+    [...clientBuMap.entries()]
+      .filter(([pac, bu]) => bu && rmsCodeSet.has(pac))
+      .map(([, bu]) => bu)
+  )].sort();
 
-  const tickets = rows.map((r) => ({
-    ...mapRow(r),
-    Dates: extractRmsDates(r.id_externe)
-  }));
-
+  const tickets = rows.map(r => ({ ...mapRow(r), Dates: extractRmsDates(r.id_externe) }));
   res.json({ tickets, total, page, limit, buOptions });
 };
 

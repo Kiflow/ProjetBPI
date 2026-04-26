@@ -10,12 +10,12 @@
       <div class="header-right">
         <!-- GTA toggle -->
         <div class="gta-toggle">
-          <span class="gta-label">Client GTA</span>
+          <span class="gta-label">Client GTA ADP</span>
           <label class="switch">
             <input id="gta-filter" type="checkbox" v-model="hasGta" />
             <span class="slider" />
           </label>
-          <span class="switch-text" :class="{ active: hasGta }">{{ hasGta ? 'Avec GTA' : 'Sans GTA' }}</span>
+          <span class="switch-text" :class="{ active: hasGta }">{{ hasGta ? 'Avec GTA ADP' : 'Sans GTA ADP' }}</span>
         </div>
       </div>
     </div>

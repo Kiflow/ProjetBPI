@@ -12,6 +12,21 @@
           <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clip-rule="evenodd"/></svg>
           <input v-model="clientSearch" type="search" placeholder="PAC, nom client..." class="search-input" />
         </div>
+
+        <div v-if="buList.length" class="bu-filter-wrap" v-click-outside="closeBuDropdown">
+          <button class="bu-trigger" @click="buDropdownOpen = !buDropdownOpen">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 0 1 .628.74v2.288a2.25 2.25 0 0 1-.659 1.59l-4.682 4.683a2.25 2.25 0 0 0-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 0 1 8 18.25v-5.757a2.25 2.25 0 0 0-.659-1.591L2.659 6.22A2.25 2.25 0 0 1 2 4.629V2.34a.75.75 0 0 1 .628-.74Z" clip-rule="evenodd"/></svg>
+            <span>{{ selectedBus.size ? `${selectedBus.size} BU sélectionnée${selectedBus.size > 1 ? 's' : ''}` : 'Filtrer par BU' }}</span>
+            <svg class="chevron" :class="{ open: buDropdownOpen }" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+          </button>
+          <div v-if="buDropdownOpen" class="bu-dropdown">
+            <label v-for="bu in buList" :key="bu" class="bu-option">
+              <input type="checkbox" :checked="selectedBus.has(bu)" @change="toggleBu(bu)" />
+              <span>{{ bu }}</span>
+            </label>
+            <div v-if="selectedBus.size" class="bu-reset" @click="selectedBus = new Set()">Réinitialiser</div>
+          </div>
+        </div>
       </div>
 
       <div class="client-list">
@@ -284,6 +299,14 @@
 import { ref, computed, onMounted, defineComponent, h } from "vue";
 import api from "../services/api";
 
+const vClickOutside = {
+  mounted(el, binding) {
+    el._clickOutside = (e) => { if (!el.contains(e.target)) binding.value(); };
+    document.addEventListener("click", el._clickOutside);
+  },
+  unmounted(el) { document.removeEventListener("click", el._clickOutside); }
+};
+
 // ── Inline TicketsPanel component ─────────────────────────────────────────
 const TicketsPanel = defineComponent({
   props: { subjectId: String, filterPac: String, allTickets: Array },
@@ -398,8 +421,11 @@ const allClients = ref([]);
 const allTickets = ref([]);
 const teamMembers = ref([]);
 
-const clientSearch = ref("");
+const clientSearch  = ref("");
 const subjectSearch = ref("");
+const selectedBus   = ref(new Set());
+const buDropdownOpen = ref(false);
+const closeBuDropdown = () => { buDropdownOpen.value = false; };
 const selectedPac = ref(null);
 const showTemplates = ref(false);
 const expandedId = ref(null);
@@ -424,9 +450,22 @@ const tplError = ref("");
 // ── Computed ───────────────────────────────────────────────────────────────
 const normalize = (v) => String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
+const buList = computed(() =>
+  [...new Set(allClients.value.map(c => c.bu).filter(Boolean))].sort()
+);
+
+const toggleBu = (bu) => {
+  const s = new Set(selectedBus.value);
+  s.has(bu) ? s.delete(bu) : s.add(bu);
+  selectedBus.value = s;
+};
+
 const filteredClients = computed(() => {
   const q = normalize(clientSearch.value);
-  return allClients.value.filter(c => !q || normalize(c.pac).includes(q) || normalize(c.name).includes(q)).slice(0, 120);
+  return allClients.value
+    .filter(c => !q || normalize(c.pac).includes(q) || normalize(c.name).includes(q))
+    .filter(c => !selectedBus.value.size || selectedBus.value.has(c.bu))
+    .slice(0, 120);
 });
 
 const selectedClient = computed(() => allClients.value.find(c => c.pac === selectedPac.value) || null);
@@ -625,7 +664,37 @@ const deleteTemplate = async (id) => {
 }
 .panel-head h2 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 0; }
 
-.panel-filters { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+.panel-filters { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 6px; }
+
+.bu-filter-wrap { position: relative; }
+.bu-trigger {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 5px 8px; background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 7px; font-size: 12px; font-weight: 600; color: #334155;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.bu-trigger:hover { background: #f1f5f9; border-color: #cbd5e0; }
+.bu-trigger svg:first-child { width: 13px; height: 13px; color: #64748b; flex-shrink: 0; }
+.bu-trigger span { flex: 1; text-align: left; }
+.bu-trigger .chevron { width: 13px; height: 13px; color: #94a3b8; transition: transform 0.2s; flex-shrink: 0; }
+.bu-trigger .chevron.open { transform: rotate(180deg); }
+.bu-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15,23,42,0.12); z-index: 30; overflow: hidden;
+}
+.bu-option {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+  font-size: 12px; font-weight: 500; color: #334155; cursor: pointer;
+  transition: background 0.12s;
+}
+.bu-option:hover { background: #f8fafc; }
+.bu-option input[type="checkbox"] { accent-color: #1a3a5c; width: 13px; height: 13px; cursor: pointer; }
+.bu-reset {
+  padding: 6px 10px; font-size: 11px; font-weight: 600; color: #dc2626;
+  border-top: 1px solid #f1f5f9; cursor: pointer; transition: background 0.12s;
+}
+.bu-reset:hover { background: #fff7f7; }
 .search-wrap { position: relative; }
 .search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: #94a3b8; pointer-events: none; }
 .search-input { width: 100%; padding: 6px 8px 6px 28px; border: 1px solid #e2e8f0; border-radius: 7px; font-size: 12px; background: #f8fafc; box-sizing: border-box; }

@@ -6,6 +6,24 @@
 
     <div class="filters-row">
       <div class="filter-block">
+        <label class="filter-label">Classification BU</label>
+        <div class="bu-filter-wrap" v-click-outside="closeBuDropdown">
+          <button class="bu-trigger" @click="buDropdownOpen = !buDropdownOpen">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 0 1 .628.74v2.288a2.25 2.25 0 0 1-.659 1.59l-4.682 4.683a2.25 2.25 0 0 0-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 0 1 8 18.25v-5.757a2.25 2.25 0 0 0-.659-1.591L2.659 6.22A2.25 2.25 0 0 1 2 4.629V2.34a.75.75 0 0 1 .628-.74Z" clip-rule="evenodd"/></svg>
+            <span>{{ buFilter.length ? `${buFilter.length} BU sélectionnée${buFilter.length > 1 ? 's' : ''}` : 'Toutes les BU' }}</span>
+            <svg class="chevron" :class="{ open: buDropdownOpen }" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+          </button>
+          <div v-if="buDropdownOpen" class="bu-dropdown">
+            <label v-for="bu in buOptions" :key="bu" class="bu-option">
+              <input type="checkbox" :value="bu" v-model="buFilter" @change="onBuChange" />
+              <span>{{ bu }}</span>
+            </label>
+            <div v-if="buFilter.length" class="bu-reset" @click="buFilter = []; onBuChange()">Réinitialiser</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-block">
         <label class="filter-label" for="handlerFilter">À traiter par</label>
         <select
           id="handlerFilter"
@@ -15,24 +33,6 @@
           <option value="all">Tous</option>
           <option value="client">Client</option>
           <option value="adp">ADP</option>
-        </select>
-      </div>
-
-      <div class="filter-block">
-        <label class="filter-label" for="buFilter">Classification BU</label>
-        <select
-          id="buFilter"
-          v-model="buFilter"
-          class="filter-select"
-          multiple
-        >
-          <option
-            v-for="option in buOptions"
-            :key="option"
-            :value="option"
-          >
-            {{ option }}
-          </option>
         </select>
       </div>
 
@@ -76,6 +76,7 @@
     </p>
 
     <template v-else>
+    <div class="table-card">
     <table class="tickets-table">
       <thead>
         <tr>
@@ -117,16 +118,12 @@
           </td>
           <td class="col-date-promis">
             <div class="promise-cell">
-              <span v-if="!row.DatePromisPour" class="alert alert-severe">
-                Non renseignée
-              </span>
+              <span v-if="!row.DatePromisPour" class="alert alert-severe">Non renseignée</span>
               <template v-else>
-                <span class="promise-date">
-                  {{ formatPromiseDate(row.DatePromisPour) }}
-                </span>
-                <span class="promise-divider" aria-hidden="true"></span>
-                <span class="promise-status" :class="promiseStatusClass(row.DatePromisPour)">
-                  {{ promiseStatusText(row.DatePromisPour) }}
+                <span class="promise-date">{{ formatPromiseDate(row.DatePromisPour) }}</span>
+                <span class="promise-info" :class="promiseStatusClass(row.DatePromisPour)">
+                  i
+                  <span class="promise-tooltip">{{ promiseStatusText(row.DatePromisPour) }}</span>
                 </span>
               </template>
             </div>
@@ -180,6 +177,7 @@
         <button class="page-btn" :disabled="currentPage === totalPages" @click="currentPage = totalPages">»</button>
         <span class="page-info">Page {{ currentPage }} / {{ totalPages }}</span>
       </div>
+    </div>
     </template>
   </div>
 </template>
@@ -188,12 +186,23 @@
 import { ref, computed, onMounted, watch } from "vue";
 import api from "../services/api";
 
+const vClickOutside = {
+  mounted(el, binding) {
+    el._clickOutside = (e) => { if (!el.contains(e.target)) binding.value(); };
+    document.addEventListener("click", el._clickOutside);
+  },
+  unmounted(el) { document.removeEventListener("click", el._clickOutside); }
+};
+
 const displayRows = ref([]);
 const total = ref(0);
 const buOptions = ref([]);
 const viewMode = ref("equipe");
 const handlerFilter = ref("all");
 const buFilter = ref([]);
+const buDropdownOpen = ref(false);
+const closeBuDropdown = () => { buDropdownOpen.value = false; };
+const onBuChange = () => { currentPage.value = 1; fetchPage(); };
 const pageSize = ref(20);
 const currentPage = ref(1);
 const loading = ref(false);
@@ -340,134 +349,167 @@ const visiblePages = computed(() => {
 
 <style scoped>
 .page {
+  margin: -24px;
   padding: 24px;
-  background-color: #ffffff;
-  min-height: 100vh;
-}
-
-.hint {
-  margin-top: 6px;
-  color: #243b53;
+  min-height: calc(100% + 48px);
+  background: #f1f5f9;
+  font-family: Inter, sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .filters-row {
-  margin-top: 12px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 32px;
   flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  box-shadow: 0 1px 4px rgba(15,23,42,0.05);
 }
 
 .toggle {
   display: inline-flex;
-  gap: 8px;
+  gap: 6px;
+  margin-left: auto;
 }
 
 .filter-block {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 10px;
 }
 
 .filter-label {
-  font-weight: 600;
-  color: #243b53;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
 }
 
 .filter-select {
   padding: 6px 10px;
-  border: 1px solid #cbd5e0;
-  border-radius: 4px;
-  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+  font-size: 13px;
+  color: #334155;
 }
 
-.filter-select[multiple] {
-  min-width: 180px;
-  min-height: 70px;
+.bu-filter-wrap { position: relative; min-width: 180px; }
+.bu-trigger {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 6px 10px; background: #fff; border: 1px solid #cbd5e0;
+  border-radius: 4px; font-size: 13px; color: #334155; cursor: pointer;
+  transition: border-color 0.15s;
 }
+.bu-trigger:hover { border-color: #94a3b8; }
+.bu-trigger svg:first-child { width: 13px; height: 13px; color: #64748b; flex-shrink: 0; }
+.bu-trigger span { flex: 1; text-align: left; }
+.bu-trigger .chevron { width: 13px; height: 13px; color: #94a3b8; transition: transform 0.2s; flex-shrink: 0; }
+.bu-trigger .chevron.open { transform: rotate(180deg); }
+.bu-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; min-width: 200px;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15,23,42,0.12); z-index: 30; overflow: hidden;
+}
+.bu-option {
+  display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+  font-size: 13px; color: #334155; cursor: pointer; transition: background 0.12s;
+}
+.bu-option:hover { background: #f8fafc; }
+.bu-option input[type="checkbox"] { accent-color: #1a3a5c; width: 14px; height: 14px; cursor: pointer; }
+.bu-reset {
+  padding: 7px 12px; font-size: 12px; font-weight: 600; color: #dc2626;
+  border-top: 1px solid #f1f5f9; cursor: pointer;
+}
+.bu-reset:hover { background: #fff7f7; }
 
 .toggle-btn {
-  padding: 8px 14px;
-  border: 1px solid #cbd5e0;
-  background: #ffffff;
-  color: #243b53;
-  border-radius: 6px;
+  padding: 7px 14px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  border-radius: 7px;
   cursor: pointer;
+  font-size: 12px;
   font-weight: 600;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.toggle-btn:hover { background: #f1f5f9; border-color: #cbd5e0; color: #334155; }
+.toggle-btn.active {
+  background: #1a3a5c;
+  color: #ffffff;
+  border-color: #1a3a5c;
 }
 
-.toggle-btn.active {
-  background: #0f2742;
-  color: #ffffff;
-  border-color: #0f2742;
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .empty {
-  margin-top: 16px;
-  color: #6b6b6b;
+  color: #94a3b8;
+  font-size: 14px;
+  text-align: center;
+  padding: 40px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+/* ── Table card ── */
+.table-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(15,23,42,0.06);
+  overflow: hidden;
 }
 
 .tickets-table {
   width: 100%;
-  margin-top: 16px;
   border-collapse: collapse;
-  background: #ffffff;
+  table-layout: auto;
 }
 
 .tickets-table th,
 .tickets-table td {
   border-bottom: 1px solid #f1f5f9;
-  border-right: 1px solid #f1f5f9;
-  padding: 6px 14px;
+  padding: 8px 14px;
   text-align: left;
   vertical-align: middle;
 }
 
 .tickets-table th:last-child,
-.tickets-table td:last-child {
-  border-right: none;
-}
+.tickets-table td:last-child { border-right: none; }
 
 .tickets-table thead th {
   border-bottom: 2px solid #e2e8f0;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: #94a3b8;
-  padding: 6px 14px;
-  background: #ffffff;
-  white-space: nowrap;
-}
-
-.tickets-table tbody tr {
-  transition: background 0.12s ease;
-}
-
-.tickets-table tbody tr:hover {
+  letter-spacing: 0.07em;
+  color: #1a3a5c;
+  padding: 10px 14px;
   background: #f8fafc;
-}
-
-.tickets-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.tickets-table tbody td {
-  color: #1e293b;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.col-ticket {
-  width: 1%;
   white-space: nowrap;
 }
 
-.col-code-client {
-  width: 120px;
-  white-space: nowrap;
-}
+.tickets-table tbody tr { transition: background 0.12s ease; }
+.tickets-table tbody tr:hover { background: #f8fafc; }
+.tickets-table tbody tr:last-child td { border-bottom: none; }
+.tickets-table tbody td { color: #1e293b; font-size: 13px; line-height: 1.4; }
+
+.col-ticket { width: 1%; white-space: nowrap; }
+.col-ticket td { font-weight: 700; color: #1a3a5c; font-variant-numeric: tabular-nums; }
+.col-code-client { width: 100px; white-space: nowrap; color: #64748b; font-size: 12px; }
 
 .col-objet {
   max-width: 260px;
@@ -504,42 +546,59 @@ const visiblePages = computed(() => {
 
 .promise-cell {
   display: flex;
-  flex-direction: row;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .col-date-promis {
   width: 1%;
   white-space: nowrap;
 }
-.promise-status {
+.promise-info {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  border: 1px solid transparent;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 800;
+  font-style: italic;
+  cursor: default;
+  flex-shrink: 0;
 }
+.promise-info.promise-overdue { background: #dc2626; color: #fff; }
+.promise-info.promise-ok      { background: #16a34a; color: #fff; }
+.promise-info.promise-unknown { background: #94a3b8; color: #fff; }
 
-.promise-status.promise-overdue {
-  background: #fee2e2;
-  color: #b91c1c;
-  border-color: #fecaca;
+.promise-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  font-style: normal;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 20;
 }
-
-.promise-status.promise-ok {
-  background: #dcfce7;
-  color: #166534;
-  border-color: #bbf7d0;
+.promise-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #0f172a;
 }
-
-.promise-status.promise-unknown {
-  background: #e2e8f0;
-  color: #334155;
-  border-color: #cbd5e1;
-}
+.promise-info:hover .promise-tooltip { display: block; }
 
 .promise-date {
   color: #1f2937;
@@ -547,12 +606,6 @@ const visiblePages = computed(() => {
   white-space: nowrap;
 }
 
-.promise-divider {
-  width: 2px;
-  height: 22px;
-  background: #e2e8f0;
-  flex-shrink: 0;
-}
 
 .alert {
   display: inline-flex;
@@ -663,16 +716,6 @@ const visiblePages = computed(() => {
   transform: rotate(45deg);
 }
 
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 12px;
-  margin-bottom: 12px;
-}
-
 .toolbar-right {
   display: flex;
   align-items: center;
@@ -680,64 +723,52 @@ const visiblePages = computed(() => {
 }
 
 .total-count {
-  font-size: 13px;
-  color: #64748b;
-  background: #f1f5f9;
-  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a3a5c;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 4px 12px;
   border-radius: 99px;
 }
 
 .loading {
   text-align: center;
-  padding: 40px;
-  color: #64748b;
+  padding: 48px;
+  color: #94a3b8;
   font-size: 14px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
 }
 
 .pagination {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  margin-top: 20px;
+  gap: 4px;
+  padding: 12px 18px;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
   flex-wrap: wrap;
 }
 
 .page-btn {
-  min-width: 34px;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid #cbd5e0;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #e2e8f0;
   border-radius: 6px;
-  background: #ffffff;
+  background: #fff;
   color: #334155;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.page-btn:hover:not(:disabled) {
-  background: #eef2ff;
-  border-color: #0052cc;
-  color: #0052cc;
-}
-
-.page-btn.active {
-  background: #0052cc;
-  border-color: #0052cc;
-  color: #ffffff;
-  font-weight: 700;
-}
-
-.page-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.page-info {
-  font-size: 13px;
-  color: #64748b;
-  margin-left: 8px;
-}
+.page-btn:hover:not(:disabled) { background: #eff6ff; border-color: #1a3a5c; color: #1a3a5c; }
+.page-btn.active { background: #1a3a5c; border-color: #1a3a5c; color: #fff; font-weight: 700; }
+.page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.page-info { font-size: 12px; color: #94a3b8; margin-left: 6px; }
 </style>
 

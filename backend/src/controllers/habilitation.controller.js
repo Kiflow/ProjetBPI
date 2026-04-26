@@ -1,15 +1,23 @@
 const { randomUUID } = require("crypto");
 const db = require("../db/database");
 const { readInterlocuteurs } = require("../services/interlocuteurs.service");
+const { readClients } = require("../services/clients.service");
 
 // ── Clients gérés par habilitation ──────────────────────────────
 
 exports.getClients = (req, res) => {
   const clients = db.prepare("SELECT * FROM habilitation_clients ORDER BY compte").all();
-  const all = readInterlocuteurs();
+  const allInterlo = readInterlocuteurs();
+
+  // Enrichit le BU depuis client.csv si non stocké en DB
+  let csvClients = [];
+  try { csvClients = readClients(); } catch {}
+  const csvMap = new Map(csvClients.map(c => [c.pac.toLowerCase(), c.bu]));
+
   const result = clients.map((c) => ({
     ...c,
-    nb_interlocuteurs: all.filter(
+    bu: c.bu || csvMap.get(c.code_client.toLowerCase()) || "",
+    nb_interlocuteurs: allInterlo.filter(
       (i) => i.code_client.toLowerCase() === c.code_client.toLowerCase()
     ).length,
   }));
@@ -17,7 +25,7 @@ exports.getClients = (req, res) => {
 };
 
 exports.addClient = (req, res) => {
-  const { code_client, compte, client_num } = req.body;
+  const { code_client, compte, client_num, bu } = req.body;
   if (!code_client || !compte)
     return res.status(400).json({ message: "code_client et compte requis." });
 
@@ -29,10 +37,10 @@ exports.addClient = (req, res) => {
 
   const id = randomUUID();
   db.prepare(
-    "INSERT INTO habilitation_clients (id, code_client, compte, client_num) VALUES (?, ?, ?, ?)"
-  ).run(id, code_client, compte, client_num || "");
+    "INSERT INTO habilitation_clients (id, code_client, compte, client_num, bu) VALUES (?, ?, ?, ?, ?)"
+  ).run(id, code_client, compte, client_num || "", bu || "");
 
-  res.status(201).json({ id, code_client, compte, client_num: client_num || "" });
+  res.status(201).json({ id, code_client, compte, client_num: client_num || "", bu: bu || "" });
 };
 
 exports.removeClient = (req, res) => {
@@ -48,16 +56,10 @@ exports.getInterlocuteurs = (req, res) => {
     .get(req.params.clientId);
   if (!client) return res.status(404).json({ message: "Client introuvable." });
 
-  console.log("[habilitation] getInterlocuteurs pour client :", client.compte, "| code_client :", `"${client.code_client}"`);
-
   const all = readInterlocuteurs();
-  console.log("[habilitation] Total interlocuteurs dans CSV :", all.length);
-  console.log("[habilitation] Code clients dans CSV :", [...new Set(all.map(i => `"${i.code_client}"`))]);
-
   const csvRows = all.filter(
     (i) => i.code_client.toLowerCase() === client.code_client.toLowerCase()
   );
-  console.log("[habilitation] Interlocuteurs matchés pour code", `"${client.code_client}"`, ":", csvRows.length);
 
   // Enrichit avec le statut chef_de_file stocké en DB
   const chefs = db

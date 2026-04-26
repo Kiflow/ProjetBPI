@@ -11,18 +11,37 @@
         </button>
       </div>
 
+      <!-- Filtre BU multi-sélection -->
+      <div v-if="buList.length" class="bu-filter" v-click-outside="closeBuDropdown">
+        <button class="bu-dropdown-trigger" @click="buDropdownOpen = !buDropdownOpen">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 0 1 .628.74v2.288a2.25 2.25 0 0 1-.659 1.59l-4.682 4.683a2.25 2.25 0 0 0-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 0 1 8 18.25v-5.757a2.25 2.25 0 0 0-.659-1.591L2.659 6.22A2.25 2.25 0 0 1 2 4.629V2.34a.75.75 0 0 1 .628-.74Z" clip-rule="evenodd"/></svg>
+          <span>{{ selectedBus.size ? `${selectedBus.size} BU sélectionnée${selectedBus.size > 1 ? 's' : ''}` : 'Filtrer par BU' }}</span>
+          <svg class="chevron" :class="{ open: buDropdownOpen }" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+        </button>
+
+        <div v-if="buDropdownOpen" class="bu-dropdown">
+          <label v-for="bu in buList" :key="bu" class="bu-option">
+            <input type="checkbox" :checked="selectedBus.has(bu)" @change="toggleBu(bu)" />
+            <span>{{ bu }}</span>
+          </label>
+          <div v-if="selectedBus.size" class="bu-reset" @click="selectedBus = new Set()">
+            Réinitialiser
+          </div>
+        </div>
+      </div>
+
       <div v-if="loadingClients" class="panel-empty">Chargement…</div>
-      <div v-else-if="!habClients.length" class="panel-empty">Aucun client géré par habilitation.</div>
+      <div v-else-if="!filteredClients.length" class="panel-empty">Aucun client géré par habilitation.</div>
       <ul v-else class="client-list">
         <li
-          v-for="c in habClients" :key="c.id"
+          v-for="c in filteredClients" :key="c.id"
           class="client-item"
           :class="{ active: selectedClient?.id === c.id }"
           @click="selectClient(c)"
         >
           <div class="client-item-info">
             <span class="client-item-name">{{ c.compte }}</span>
-            <span class="client-item-pac">{{ c.code_client }}</span>
+            <span class="client-item-pac">{{ c.code_client }}<span v-if="c.bu" class="client-item-bu"> · {{ c.bu }}</span></span>
           </div>
           <span class="client-item-badge">{{ c.nb_interlocuteurs }}</span>
           <button class="btn-icon danger" title="Supprimer" @click.stop="removeClient(c)">
@@ -82,10 +101,26 @@
           <button class="modal-close" @click="showAddClient = false">✕</button>
         </div>
         <div class="modal-body">
+          <!-- Filtre BU -->
+          <div v-if="modalBuList.length" class="modal-bu-filter" v-click-outside="closeModalBuDropdown">
+            <button class="bu-dropdown-trigger" @click="modalBuDropdownOpen = !modalBuDropdownOpen">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 0 1 .628.74v2.288a2.25 2.25 0 0 1-.659 1.59l-4.682 4.683a2.25 2.25 0 0 0-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 0 1 8 18.25v-5.757a2.25 2.25 0 0 0-.659-1.591L2.659 6.22A2.25 2.25 0 0 1 2 4.629V2.34a.75.75 0 0 1 .628-.74Z" clip-rule="evenodd"/></svg>
+              <span>{{ modalSelectedBus.size ? `${modalSelectedBus.size} BU sélectionnée${modalSelectedBus.size > 1 ? 's' : ''}` : 'Filtrer par BU' }}</span>
+              <svg class="chevron" :class="{ open: modalBuDropdownOpen }" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+            </button>
+            <div v-if="modalBuDropdownOpen" class="bu-dropdown modal-bu-dropdown">
+              <label v-for="bu in modalBuList" :key="bu" class="bu-option">
+                <input type="checkbox" :checked="modalSelectedBus.has(bu)" @change="toggleModalBu(bu)" />
+                <span>{{ bu }}</span>
+              </label>
+              <div v-if="modalSelectedBus.size" class="bu-reset" @click="modalSelectedBus = new Set()">Réinitialiser</div>
+            </div>
+          </div>
+
           <label class="form-label">Client</label>
           <select v-model="addClientForm.selected" class="form-input">
             <option value="">— Sélectionner un client —</option>
-            <option v-for="c in availableClients" :key="c.pac" :value="c">
+            <option v-for="c in filteredAvailableClients" :key="c.pac" :value="c">
               {{ c.name }} ({{ c.pac }})
             </option>
           </select>
@@ -104,6 +139,14 @@
 import { ref, computed, onMounted } from "vue";
 import api from "../services/api";
 
+const vClickOutside = {
+  mounted(el, binding) {
+    el._clickOutside = (e) => { if (!el.contains(e.target)) binding.value(); };
+    document.addEventListener("click", el._clickOutside);
+  },
+  unmounted(el) { document.removeEventListener("click", el._clickOutside); }
+};
+
 // ── État ──────────────────────────────────────────────────────
 const habClients       = ref([]);
 const selectedClient   = ref(null);
@@ -111,9 +154,48 @@ const interlocuteurs   = ref([]);
 const availableClients = ref([]);
 const loadingClients   = ref(false);
 const loadingInterlo   = ref(false);
+const selectedBus      = ref(new Set());
+const buDropdownOpen   = ref(false);
+const closeBuDropdown  = () => { buDropdownOpen.value = false; };
+
+// Filtre BU du modal
+const modalSelectedBus    = ref(new Set());
+const modalBuDropdownOpen = ref(false);
+const closeModalBuDropdown = () => { modalBuDropdownOpen.value = false; };
 
 const showAddClient = ref(false);
 const addClientForm = ref({ selected: "" });
+
+// ── Filtre BU ─────────────────────────────────────────────────
+const buList = computed(() =>
+  [...new Set(habClients.value.map(c => c.bu).filter(Boolean))].sort()
+);
+
+const filteredClients = computed(() => {
+  if (!selectedBus.value.size) return habClients.value;
+  return habClients.value.filter(c => selectedBus.value.has(c.bu));
+});
+
+const toggleBu = (bu) => {
+  const s = new Set(selectedBus.value);
+  s.has(bu) ? s.delete(bu) : s.add(bu);
+  selectedBus.value = s;
+};
+
+const modalBuList = computed(() =>
+  [...new Set(availableClients.value.map(c => c.bu).filter(Boolean))].sort()
+);
+
+const filteredAvailableClients = computed(() => {
+  if (!modalSelectedBus.value.size) return availableClients.value;
+  return availableClients.value.filter(c => modalSelectedBus.value.has(c.bu));
+});
+
+const toggleModalBu = (bu) => {
+  const s = new Set(modalSelectedBus.value);
+  s.has(bu) ? s.delete(bu) : s.add(bu);
+  modalSelectedBus.value = s;
+};
 
 // ── Chargement ────────────────────────────────────────────────
 const loadClients = async () => {
@@ -151,6 +233,8 @@ onMounted(loadClients);
 // ── Clients ───────────────────────────────────────────────────
 const openAddClient = async () => {
   addClientForm.value = { selected: "" };
+  modalSelectedBus.value = new Set();
+  modalBuDropdownOpen.value = false;
   await loadAvailableClients();
   showAddClient.value = true;
 };
@@ -161,7 +245,8 @@ const confirmAddClient = async () => {
   await api.post("/habilitation/clients", {
     code_client: c.pac,
     compte: c.name,
-    client_num: ""
+    client_num: "",
+    bu: c.bu || ""
   });
   showAddClient.value = false;
   await loadClients();
@@ -231,6 +316,76 @@ const initials = (prenom, nom) =>
   color: #94a3b8;
   text-align: center;
 }
+
+.bu-filter {
+  padding: 8px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  position: relative;
+}
+
+.bu-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.bu-dropdown-trigger:hover { background: #f1f5f9; border-color: #cbd5e0; }
+.bu-dropdown-trigger svg:first-child { width: 13px; height: 13px; color: #64748b; flex-shrink: 0; }
+.bu-dropdown-trigger span { flex: 1; text-align: left; }
+.bu-dropdown-trigger .chevron { width: 14px; height: 14px; color: #94a3b8; transition: transform 0.2s; flex-shrink: 0; }
+.bu-dropdown-trigger .chevron.open { transform: rotate(180deg); }
+
+.bu-dropdown {
+  position: absolute;
+  top: calc(100% - 4px);
+  left: 14px;
+  right: 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15,23,42,0.12);
+  z-index: 20;
+  overflow: hidden;
+}
+
+.bu-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.bu-option:hover { background: #f8fafc; }
+.bu-option input[type="checkbox"] { accent-color: #1a3a5c; width: 14px; height: 14px; cursor: pointer; }
+
+.modal-bu-filter { position: relative; margin-bottom: 12px; }
+.modal-bu-dropdown { top: calc(100% + 4px); left: 0; right: 0; }
+
+.bu-reset {
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #dc2626;
+  border-top: 1px solid #f1f5f9;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.bu-reset:hover { background: #fff7f7; }
+
+.client-item-bu { color: #94a3b8; }
 
 .client-list {
   list-style: none;

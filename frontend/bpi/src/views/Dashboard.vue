@@ -58,27 +58,90 @@
 
     <!-- ── Stats row ─────────────────────────────────────────────── -->
     <div class="stats-row">
-      <div class="stat-card">
-        <p class="stat-label">Total tickets actifs</p>
-        <p class="stat-value">{{ total.toLocaleString("fr-FR") || "1 284" }}</p>
+      <div class="stat-card stat-card--donut">
+        <p class="stat-label">Répartition des tickets</p>
+        <div class="donut-wrap">
+          <svg class="donut-svg" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="30" fill="none" stroke="#f1f5f9" stroke-width="10"/>
+            <circle v-for="seg in donutSegments" :key="seg.label"
+              cx="40" cy="40" r="30" fill="none"
+              :stroke="seg.color" stroke-width="10"
+              :stroke-dasharray="`${seg.dash} ${seg.gap}`"
+              :stroke-dashoffset="seg.offset"
+              stroke-linecap="butt"
+            />
+            <text x="40" y="44" text-anchor="middle" class="donut-total">{{ donutTotal }}</text>
+          </svg>
+          <ul class="donut-legend">
+            <li v-for="seg in donutSegments" :key="seg.label" class="donut-legend-item">
+              <span class="donut-dot" :style="{ background: seg.color }"></span>
+              <span class="donut-legend-label">{{ seg.label }}</span>
+              <span class="donut-legend-val">{{ seg.count }}</span>
+            </li>
+          </ul>
+        </div>
       </div>
-      <div class="stat-card stat-card--critical">
-        <p class="stat-label">Priorité critique</p>
-        <p class="stat-value">42</p>
-        <p class="stat-sub">
-          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 3l4 6H4l4-6z"/></svg>
-          +12% vs hier
-        </p>
+      <div class="stat-card stat-card--fiscal">
+        <p class="stat-label">Tickets fermés — Année fiscale</p>
+        <div class="fiscal-chart">
+          <svg :viewBox="`0 0 ${fiscalSvgW} ${fiscalSvgH}`" class="fiscal-svg" preserveAspectRatio="none">
+            <!-- Lignes de grille -->
+            <line v-for="g in fiscalGridLines" :key="g.y"
+              :x1="fiscalPadL" :y1="g.y" :x2="fiscalSvgW - fiscalPadR" :y2="g.y"
+              stroke="#f1f5f9" stroke-width="1"/>
+            <!-- Valeurs grille -->
+            <text v-for="g in fiscalGridLines" :key="'t'+g.y"
+              :x="fiscalPadL - 6" :y="g.y + 4"
+              text-anchor="end" class="fiscal-grid-label">{{ g.val }}</text>
+            <!-- Barres -->
+            <g v-for="(m, i) in fiscalMonths" :key="m.key">
+              <rect
+                :x="fiscalBarX(i)" :y="fiscalBarY(m.count)"
+                :width="fiscalBarW" :height="fiscalBarH(m.count)"
+                :fill="m.current ? '#1a6b3a' : '#1a3a5c'"
+                rx="2"
+              />
+              <!-- Nombre dans la barre -->
+              <text
+                :x="fiscalBarX(i) + fiscalBarW / 2"
+                :y="fiscalBarY(m.count) + fiscalBarH(m.count) - 6"
+                text-anchor="middle" class="fiscal-bar-label"
+              >{{ m.count }}</text>
+              <!-- Label mois -->
+              <text
+                :x="fiscalBarX(i) + fiscalBarW / 2" :y="fiscalSvgH - fiscalPadB + 13"
+                text-anchor="middle" class="fiscal-month-label"
+                :fill="m.current ? '#1a6b3a' : '#0f172a'"
+              >{{ m.label }}</text>
+            </g>
+          </svg>
+        </div>
       </div>
-      <div class="stat-card">
-        <p class="stat-label">Tickets fermés ce mois</p>
-        <p class="stat-value">89</p>
-        <p class="stat-sub muted">Tickets fermés fiscal : 324</p>
-      </div>
-      <div class="stat-card">
-        <p class="stat-label">Attente retour client +2 mois</p>
-        <p class="stat-value">14</p>
-        <p class="stat-sub muted">Attente retour client total : 57</p>
+      <div class="stat-card stat-card--attente">
+        <p class="stat-label">Attente retour client</p>
+        <div class="attente-stats" style="margin-top:0">
+          <div class="attente-main">
+            <span class="attente-number">14</span>
+            <span class="attente-sublabel">+ 2 mois</span>
+          </div>
+          <div class="attente-divider"></div>
+          <div class="attente-secondary">
+            <div class="attente-row">
+              <span class="attente-row-label">Total en attente</span>
+              <span class="attente-row-val">57</span>
+            </div>
+            <div class="attente-bar-wrap">
+              <div class="attente-bar" :style="{ width: Math.round(14/57*100) + '%' }"></div>
+            </div>
+            <div class="attente-row" style="margin-top:8px">
+              <span class="attente-row-label">Moins de 2 mois</span>
+              <span class="attente-row-val">43</span>
+            </div>
+            <div class="attente-bar-wrap">
+              <div class="attente-bar attente-bar--low" :style="{ width: Math.round(43/57*100) + '%' }"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -90,11 +153,7 @@
       <div v-if="critiqueTickets.length" class="section-card">
         <div class="section-header critique-header">
           <div class="section-header-left">
-            <svg class="section-icon" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
-            </svg>
             <span class="section-title">Tickets Critiques</span>
-            <span class="badge-urgent">URGENT</span>
           </div>
           <span class="section-count">{{ critiqueTickets.length }}</span>
         </div>
@@ -137,13 +196,9 @@
       <div v-if="planTickets.length" class="section-card">
         <div class="section-header plan-header">
           <div class="section-header-left">
-            <svg class="section-icon" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 7l2.55 2.4A1 1 0 0116 11H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clip-rule="evenodd"/>
-            </svg>
             <span class="section-title">Plans d'Action</span>
-            <span class="section-count">{{ planTickets.length }}</span>
           </div>
-          <button class="link-btn">Voir tout →</button>
+          <span class="section-count">{{ planTickets.length }}</span>
         </div>
         <div class="table-wrapper">
           <table class="data-table">
@@ -179,13 +234,9 @@
       <div v-if="sensibleTickets.length" class="section-card">
         <div class="section-header sensible-header">
           <div class="section-header-left">
-            <svg class="section-icon" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 1a6 6 0 00-3.815 10.631C7.237 12.5 8 13.443 8 14.456v.544a1 1 0 001 1h2a1 1 0 001-1v-.544c0-1.013.762-1.957 1.815-2.825A6 6 0 0010 1zM8.863 17.414a1 1 0 00-.186 1.986l.022.004a8.998 8.998 0 002.604 0l.022-.004a1 1 0 00-.186-1.986 7.002 7.002 0 01-2.276 0z"/>
-            </svg>
             <span class="section-title">Clients Sensibles</span>
-            <span class="section-count">{{ sensibleTickets.length }}</span>
           </div>
-          <button class="link-btn vip-btn">Portail VIP →</button>
+          <span class="section-count">{{ sensibleTickets.length }}</span>
         </div>
         <div class="table-wrapper">
           <table class="data-table">
@@ -221,10 +272,7 @@
       <div class="section-card">
         <div class="section-header others-header">
           <div class="section-header-left">
-            <svg class="section-icon" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0L10 9.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-            </svg>
-            <span class="section-title">Autres Tickets</span>
+            <span class="section-title">Tickets en cours</span>
           </div>
           <div class="header-actions">
             <div class="toolbar-controls">
@@ -476,6 +524,84 @@ const planTickets     = computed(() => tickets.value.filter(t => !isCritique(t) 
 const sensibleTickets = computed(() => tickets.value.filter(t => !isCritique(t) && !t.IsPlan && t.IsSensible));
 const otherTickets    = computed(() => tickets.value.filter(t => !isCritique(t) && !t.IsPlan && !t.IsSensible));
 
+const CIRC = 2 * Math.PI * 30; // ≈ 188.5
+
+const donutSegments = computed(() => {
+  const cats = [
+    { label: "Critiques",        count: critiqueTickets.value.length, color: "#dc2626" },
+    { label: "Plans d'action",   count: planTickets.value.length,     color: "#ea580c" },
+    { label: "Clients sensibles",count: sensibleTickets.value.length, color: "#d97706" },
+    { label: "En cours",          count: otherTickets.value.length,    color: "#94a3b8" },
+  ].filter(c => c.count > 0);
+
+  const tot = cats.reduce((s, c) => s + c.count, 0);
+  if (!tot) return [];
+
+  let offset = -CIRC / 4; // commence à 12h
+  return cats.map(c => {
+    const dash = (c.count / tot) * CIRC;
+    const gap  = CIRC - dash;
+    const seg  = { ...c, dash, gap, offset: -offset };
+    offset += dash;
+    return seg;
+  });
+});
+
+const donutTotal = computed(() =>
+  critiqueTickets.value.length + planTickets.value.length +
+  sensibleTickets.value.length + otherTickets.value.length
+);
+
+// Année fiscale Juin → Mai (données en dur pour l'instant)
+const FISCAL_DATA = [
+  { key: "jun", label: "Juin", count: 42 },
+  { key: "jul", label: "Juil", count: 38 },
+  { key: "aug", label: "Août", count: 29 },
+  { key: "sep", label: "Sep",  count: 51 },
+  { key: "oct", label: "Oct",  count: 47 },
+  { key: "nov", label: "Nov",  count: 33 },
+  { key: "dec", label: "Déc",  count: 22 },
+  { key: "jan", label: "Jan",  count: 55 },
+  { key: "feb", label: "Fév",  count: 48 },
+  { key: "mar", label: "Mar",  count: 61 },
+  { key: "apr", label: "Avr",  count: 44 },
+  { key: "may", label: "Mai",  count: 37 },
+];
+
+const fiscalMonths = computed(() => {
+  const now = new Date();
+  const currentMonthKey = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"][now.getMonth()];
+  return FISCAL_DATA.map(m => ({ ...m, current: m.key === currentMonthKey }));
+});
+
+// Dimensions SVG
+const fiscalSvgW = 520;
+const fiscalSvgH = 120;
+const fiscalPadL = 32;
+const fiscalPadR = 8;
+const fiscalPadT = 10;
+const fiscalPadB = 20;
+const fiscalBarGap = 4;
+
+const fiscalMax = computed(() => Math.max(...FISCAL_DATA.map(m => m.count), 1));
+
+const fiscalChartW = computed(() => fiscalSvgW - fiscalPadL - fiscalPadR);
+const fiscalChartH = computed(() => fiscalSvgH - fiscalPadT - fiscalPadB);
+const fiscalBarW   = computed(() => (fiscalChartW.value / FISCAL_DATA.length) - fiscalBarGap);
+
+const fiscalBarX = (i) => fiscalPadL + i * (fiscalBarW.value + fiscalBarGap);
+const fiscalBarH = (count) => (count / fiscalMax.value) * fiscalChartH.value;
+const fiscalBarY = (count) => fiscalPadT + fiscalChartH.value - fiscalBarH(count);
+
+const fiscalGridLines = computed(() => {
+  const steps = 4;
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    const val = Math.round((fiscalMax.value / steps) * i);
+    const y = fiscalPadT + fiscalChartH.value - (val / fiscalMax.value) * fiscalChartH.value;
+    return { val, y };
+  });
+});
+
 const visiblePages = computed(() => {
   const pages = [];
   for (let i = Math.max(1, currentPage.value - 2); i <= Math.min(totalPages.value, currentPage.value + 2); i++) {
@@ -496,6 +622,8 @@ const visiblePages = computed(() => {
   gap: 20px;
   font-family: Inter, sans-serif;
 }
+
+.stats-row + * { margin-top: 16px; }
 
 /* ── Import card ─────────────────────────────────────────────── */
 .import-card {
@@ -553,14 +681,14 @@ const visiblePages = computed(() => {
 .progress-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .progress-msg { font-size: 12px; color: #64748b; }
 .progress-pct { font-size: 13px; font-weight: 700; color: #1a3a5c; }
-.progress-pct.done { color: #16a34a; }
+.progress-pct.done { color: #1a6b3a; }
 .progress-pct.error { color: #dc2626; }
 .progress-track { height: 7px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
 .progress-bar { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #1a3a5c, #2e5f8a); transition: width 0.3s ease; }
-.progress-bar.done { background: linear-gradient(90deg, #16a34a, #22c55e); }
+.progress-bar.done { background: linear-gradient(90deg, #1a6b3a, #22c55e); }
 .progress-bar.error { background: #dc2626; }
-.import-success { display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 12px; color: #16a34a; }
-.import-success svg { width: 15px; height: 15px; fill: #16a34a; flex-shrink: 0; }
+.import-success { display: flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 12px; color: #1a6b3a; }
+.import-success svg { width: 15px; height: 15px; fill: #1a6b3a; flex-shrink: 0; }
 .import-error { margin-top: 8px; font-size: 12px; color: #dc2626; }
 
 /* ── Stats row ───────────────────────────────────────────────── */
@@ -583,6 +711,42 @@ const visiblePages = computed(() => {
   border-color: #991b1b;
   color: #fff;
 }
+
+.stat-card--donut { padding: 14px 16px; display: flex; flex-direction: column; }
+.stat-card--donut .donut-wrap { flex: 1; display: flex; align-items: center; gap: 16px; margin-top: 10px; min-height: 0; }
+
+.stat-card--fiscal { padding: 14px 16px; grid-column: span 2; }
+
+.stat-card--attente { padding: 14px 16px; display: flex; flex-direction: column; justify-content: space-between; }
+.stat-card--attente .attente-stats { flex: 1; display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+.attente-stats { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+.attente-main { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+.attente-number { font-size: 36px; font-weight: 800; color: #dc2626; line-height: 1; }
+.attente-sublabel { font-size: 10px; font-weight: 600; color: #dc2626; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+.attente-divider { width: 1px; height: 60px; background: #e2e8f0; flex-shrink: 0; }
+.attente-secondary { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.attente-row { display: flex; justify-content: space-between; align-items: center; }
+.attente-row-label { font-size: 11px; color: #64748b; }
+.attente-row-val { font-size: 12px; font-weight: 700; color: #0f172a; }
+.attente-bar-wrap { height: 5px; background: #f1f5f9; border-radius: 99px; overflow: hidden; margin-top: 2px; }
+.attente-bar { height: 100%; background: #dc2626; border-radius: 99px; }
+.attente-bar--low { background: #94a3b8; }
+.fiscal-chart { margin-top: 8px; width: 100%; }
+.fiscal-svg { width: 100%; height: 120px; overflow: visible; }
+.fiscal-grid-label { font-size: 9px; fill: #0f172a; }
+.fiscal-month-label { font-size: 9px; }
+.fiscal-bar-label { font-size: 9px; font-weight: 700; fill: #ffffff; }
+.donut-wrap { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+.donut-svg { width: 110px; height: 110px; flex-shrink: 0; transform: rotate(-90deg); }
+.donut-total {
+  font-size: 12px; font-weight: 800; fill: #0f172a;
+  transform: rotate(90deg); transform-origin: 40px 40px;
+}
+.donut-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px; flex: 1; }
+.donut-legend-item { display: flex; align-items: center; gap: 6px; }
+.donut-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.donut-legend-label { font-size: 12px; color: #64748b; flex: 1; }
+.donut-legend-val { font-size: 13px; font-weight: 700; color: #0f172a; }
 
 .stat-label {
   font-size: 11px;
@@ -748,12 +912,12 @@ const visiblePages = computed(() => {
 }
 
 .data-table thead th {
-  padding: 8px 14px;
+  padding: 6px 14px;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: #94a3b8;
+  color: #1a3a5c;
   background: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
   text-align: left;
@@ -792,7 +956,7 @@ const visiblePages = computed(() => {
 }
 
 .data-table tbody td {
-  padding: 9px 14px;
+  padding: 6px 14px;
   font-size: 14px;
   color: #1e293b;
   border-bottom: 1px solid #f1f5f9;
