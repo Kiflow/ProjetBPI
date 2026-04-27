@@ -190,9 +190,11 @@ exports.getTicketsFromDb = (req, res) => {
 };
 
 exports.getAttenteStats = (req, res) => {
+  const userId = req.user.userId;
+
   const allAttente = db.prepare(
-    "SELECT derniere_maj FROM tickets WHERE LOWER(statut) = 'attente retour client'"
-  ).all();
+    "SELECT derniere_maj FROM tickets WHERE LOWER(statut) = 'attente retour client' AND LOWER(login_adesi) = LOWER(?)"
+  ).all(userId);
 
   const twoMonthsAgo = new Date();
   twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
@@ -200,15 +202,20 @@ exports.getAttenteStats = (req, res) => {
   const parseDate = (raw) => {
     if (!raw) return null;
     const s = String(raw).trim();
-    // Format JJ/MM/AAAA
-    const fr = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+
+    // Format JJ/MM/AAAA HH:MM:SS ou JJ/MM/AAAA
+    const fr = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
     if (fr) return new Date(Number(fr[3]), Number(fr[2]) - 1, Number(fr[1]));
+
     // Format ISO AAAA-MM-JJ
     const iso = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
     if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
-    // Excel serial
+
+    // Excel serial (5 chiffres max pour rester cohérent avec des dates réelles)
     const num = Number(s.replace(",", "."));
-    if (!Number.isNaN(num) && num > 1) return new Date(Date.UTC(1899, 11, 30) + num * 86400000);
+    if (!Number.isNaN(num) && num > 1 && num < 100000)
+      return new Date(Date.UTC(1899, 11, 30) + num * 86400000);
+
     return null;
   };
 
