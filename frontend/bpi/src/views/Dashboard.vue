@@ -121,24 +121,24 @@
         <p class="stat-label">Attente retour client</p>
         <div class="attente-stats" style="margin-top:0">
           <div class="attente-main">
-            <span class="attente-number">14</span>
+            <span class="attente-number">{{ attenteStats.plusDeuxMois }}</span>
             <span class="attente-sublabel">+ 2 mois</span>
           </div>
           <div class="attente-divider"></div>
           <div class="attente-secondary">
             <div class="attente-row">
               <span class="attente-row-label">Total en attente</span>
-              <span class="attente-row-val">57</span>
+              <span class="attente-row-val">{{ attenteStats.total }}</span>
             </div>
             <div class="attente-bar-wrap">
-              <div class="attente-bar" :style="{ width: Math.round(14/57*100) + '%' }"></div>
+              <div class="attente-bar" :style="{ width: attenteStats.total ? Math.round(attenteStats.plusDeuxMois / attenteStats.total * 100) + '%' : '0%' }"></div>
             </div>
             <div class="attente-row" style="margin-top:8px">
               <span class="attente-row-label">Moins de 2 mois</span>
-              <span class="attente-row-val">43</span>
+              <span class="attente-row-val">{{ attenteStats.moinsDeux }}</span>
             </div>
             <div class="attente-bar-wrap">
-              <div class="attente-bar attente-bar--low" :style="{ width: Math.round(43/57*100) + '%' }"></div>
+              <div class="attente-bar attente-bar--low" :style="{ width: attenteStats.total ? Math.round(attenteStats.moinsDeux / attenteStats.total * 100) + '%' : '0%' }"></div>
             </div>
           </div>
         </div>
@@ -359,6 +359,17 @@ import api from "../services/api";
 
 const dataDir = import.meta.env.VITE_DATA_DIR || "./data";
 
+// ── Attente retour client stats ──────────────────────────────────
+const attenteStats = ref({ total: 0, plusDeuxMois: 0, moinsDeux: 0 });
+const loadAttenteStats = async () => {
+  try {
+    const res = await api.get("/tickets/attente-stats");
+    attenteStats.value = res.data;
+  } catch (e) {
+    console.error("[attenteStats] erreur:", e?.response?.status, e?.response?.data || e?.message);
+  }
+};
+
 // ── Habilitation ────────────────────────────────────────────────
 const chefsDeFile = ref([]); // [{ code_client, nom, prenom }]
 
@@ -482,7 +493,7 @@ const fetchPage = async () => {
   }
 };
 
-onMounted(() => { fetchPage(); loadChefsDeFile(); });
+onMounted(() => { fetchPage(); loadChefsDeFile(); loadAttenteStats(); });
 watch(currentPage, fetchPage);
 watch([pageSize, sortKey], () => { currentPage.value = 1; fetchPage(); });
 
@@ -565,7 +576,7 @@ const FISCAL_DATA = [
   { key: "feb", label: "Fév",  count: 48 },
   { key: "mar", label: "Mar",  count: 61 },
   { key: "apr", label: "Avr",  count: 44 },
-  { key: "may", label: "Mai",  count: 37 },
+  { key: "may", label: "Mai",  count: 0 },
 ];
 
 const fiscalMonths = computed(() => {

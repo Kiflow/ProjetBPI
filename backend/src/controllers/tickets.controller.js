@@ -29,7 +29,6 @@ const mapRow = (r) => ({
   NumeroTicket: r.numero_ticket,
   Objet: r.objet,
   Priorite: r.priorite,
-  PrioriteRms: r.priorite_rms,
   DatePromisPour: r.date_promis_pour,
   Echeance: r.echeance,
   IdExterne: r.id_externe,
@@ -38,12 +37,12 @@ const mapRow = (r) => ({
   Proprietaire: r.proprietaire,
   Statut: r.statut,
   Categorie: r.categorie,
-  ClassificationBU: r.classification_bu,
   LoginAdesi: r.login_adesi,
   IsSensible: Boolean(r.is_sensible),
   IsPlan: Boolean(r.is_plan),
   Nom: r.nom || "",
-  Prenom: r.prenom || ""
+  Prenom: r.prenom || "",
+  DerniereMaj: r.derniere_maj || ""
 });
 
 // --- RMS helpers ---
@@ -145,6 +144,8 @@ exports.getRmsTickets = (req, res) => {
   res.json({ tickets, total, page, limit, buOptions });
 };
 
+const DASHBOARD_STATUTS = ["en cours", "ouvert", "attente retour interne"];
+
 exports.getTicketsFromDb = (req, res) => {
   const page    = Math.max(1, parseInt(req.query.page) || 1);
   const limit   = [10, 20, 50, 5000].includes(parseInt(req.query.limit)) ? parseInt(req.query.limit) : 20;
@@ -153,15 +154,17 @@ exports.getTicketsFromDb = (req, res) => {
   const mine    = req.query.mine === "true";
   const userId  = req.user.userId;
 
-  const conditions = [];
-  const filterParams = [];
+  const conditions = [
+    `(${DASHBOARD_STATUTS.map(() => "LOWER(t.statut) = ?").join(" OR ")})`
+  ];
+  const filterParams = [...DASHBOARD_STATUTS];
 
   if (mine) {
     conditions.push("LOWER(t.login_adesi) = LOWER(?)");
     filterParams.push(userId);
   }
 
-  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const where = `WHERE ${conditions.join(" AND ")}`;
 
   const innerSql = `
     SELECT t.*,
@@ -184,4 +187,36 @@ exports.getTicketsFromDb = (req, res) => {
     .all(userId, userId, ...filterParams, limit, offset);
 
   res.json({ tickets: rows.map(mapRow), total, page, limit });
+};
+
+exports.getAttenteStats = (req, res) => {
+  const allAttente = db.prepare(
+    "SELECT derniere_maj FROM tickets WHERE LOWER(statut) = 'attente retour client'"
+  ).all();
+
+  const twoMonthsAgo = new Date();
+  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+
+  const parseDate = (raw) => {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    // Format JJ/MM/AAAA
+    const fr = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+    if (fr) return new Date(Number(fr[3]), Number(fr[2]) - 1, Number(fr[1]));
+    // Format ISO AAAA-MM-JJ
+    const iso = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+    if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+    // Excel serial
+    const num = Number(s.replace(",", "."));
+    if (!Number.isNaN(num) && num > 1) return new Date(Date.UTC(1899, 11, 30) + num * 86400000);
+    return null;
+  };
+
+  const total = allAttente.length;
+  const plusDeuxMois = allAttente.filter(r => {
+    const d = parseDate(r.derniere_maj);
+    return d && d < twoMonthsAgo;
+  }).length;
+
+  res.json({ total, plusDeuxMois, moinsDeux: total - plusDeuxMois });
 };

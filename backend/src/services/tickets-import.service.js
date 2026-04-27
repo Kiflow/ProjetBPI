@@ -34,7 +34,6 @@ const mapRow = (row) => ({
   ).trim(),
   objet: String(row.Objet ?? row.objet ?? "").trim(),
   priorite: String(row["Priorité"] ?? row.Priorite ?? row.priorite ?? "").trim(),
-  priorite_rms: String(row["Priorité RMS"] ?? row["Priorite RMS"] ?? row["priorite_rms"] ?? "").trim(),
   date_promis_pour: String(row["Date promis pour"] ?? row["Date Promis pour"] ?? row["DatePromisPour"] ?? "").trim(),
   echeance: String(row["Échéance"] ?? row.Echeance ?? row.echeance ?? "").trim(),
   id_externe: String(row["ID externe"] ?? row["Id externe"] ?? row.IdExterne ?? "").trim(),
@@ -45,10 +44,10 @@ const mapRow = (row) => ({
   proprietaire: String(row["Propriétaire"] ?? row.Proprietaire ?? row.proprietaire ?? "").trim(),
   statut: String(row.Statut ?? row.statut ?? row.Status ?? row.status ?? "").trim(),
   categorie: String(row["Catégorie"] ?? row.Categorie ?? row.categorie ?? "").trim(),
-  classification_bu: String(row["Classification BU"] ?? row.ClassificationBU ?? "").trim(),
   login_adesi: String(row["Login ADESI"] ?? row["Login Adesi"] ?? row["login_adesi"] ?? "").trim(),
-  nom:    String(row["Nom"]    ?? row["nom"]    ?? "").trim(),
-  prenom: String(row["Prénom"] ?? row["Prenom"] ?? row["prenom"] ?? "").trim()
+  nom:          String(row["Nom"]    ?? row["nom"]    ?? "").trim(),
+  prenom:       String(row["Prénom"] ?? row["Prenom"] ?? row["prenom"] ?? "").trim(),
+  derniere_maj: String(row["Dernière mise à jour"] ?? row["Derniere mise a jour"] ?? row["derniere_maj"] ?? "").trim()
 });
 
 const BATCH_SIZE = 500;
@@ -60,8 +59,6 @@ const importTickets = async (onProgress) => {
   const ext = path.extname(filePath).toLowerCase();
   const fileName = path.basename(filePath);
 
-  console.log(`[import] Fichier : ${filePath}`);
-  console.log(`[import] Extension : ${ext}`);
   onProgress && onProgress(0, 0, "Lecture du fichier...");
   await yieldToEventLoop();
 
@@ -72,22 +69,18 @@ const importTickets = async (onProgress) => {
 
     // UTF-16 LE BOM : FF FE
     if (buffer[0] === 0xFF && buffer[1] === 0xFE) {
-      console.log("[import] Encodage détecté : UTF-16 LE");
       raw = buffer.toString("utf16le").replace(/^\uFEFF/, "");
     // UTF-16 BE BOM : FE FF
     } else if (buffer[0] === 0xFE && buffer[1] === 0xFF) {
-      console.log("[import] Encodage détecté : UTF-16 BE");
       raw = buffer.swap16().toString("utf16le").replace(/^\uFEFF/, "");
     } else {
       raw = buffer.toString("utf8");
       if (raw.includes("\uFFFD")) {
-        console.log("[import] Encodage UTF-8 invalide, bascule en latin1");
         raw = buffer.toString("latin1");
       }
       raw = raw.replace(/^\uFEFF/, "");
     }
 
-    console.log(`[import] Premiers 300 caractères du fichier :\n${raw.slice(0, 300)}`);
     const wb = xlsx.read(raw, { type: "string" });
     rows = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
   } else {
@@ -95,23 +88,14 @@ const importTickets = async (onProgress) => {
     rows = xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
   }
 
-  console.log(`[import] Lignes lues : ${rows.length}`);
 
   if (!rows.length) {
-    console.log("[import] Aucune ligne trouvée, import annulé.");
     return { inserted: 0, total: 0, file: fileName };
   }
 
-  // Log des clés brutes de la première ligne (avant normalisation)
-  console.log("[import] Clés brutes ligne 1 :", JSON.stringify(Object.keys(rows[0])));
-
-  // Log après normalisation
   const firstNorm = normalizeKeys(rows[0]);
-  console.log("[import] Clés normalisées ligne 1 :", JSON.stringify(Object.keys(firstNorm)));
-
-  // Log du mapRow sur la première ligne
-  const firstMapped = mapRow(firstNorm);
-  console.log("[import] Résultat mapRow ligne 1 :", JSON.stringify(firstMapped));
+  console.log("[debug] Colonnes:", Object.keys(firstNorm));
+  console.log("[debug] derniere_maj brut:", firstNorm["Dernière mise à jour"] ?? firstNorm["Derniere mise a jour"] ?? "(non trouvé)");
 
   const total = rows.length;
   onProgress && onProgress(0, total, `${total.toLocaleString("fr-FR")} tickets trouvés — suppression ancienne table...`);
@@ -119,13 +103,13 @@ const importTickets = async (onProgress) => {
 
   const insert = db.prepare(`
     INSERT INTO tickets
-      (numero_ticket, objet, priorite, priorite_rms, date_promis_pour, echeance,
-       id_externe, code_client, compte, proprietaire, statut, categorie, classification_bu, login_adesi,
-       nom, prenom)
+      (numero_ticket, objet, priorite, date_promis_pour, echeance,
+       id_externe, code_client, compte, proprietaire, statut, categorie, login_adesi,
+       nom, prenom, derniere_maj)
     VALUES
-      (@numero_ticket, @objet, @priorite, @priorite_rms, @date_promis_pour, @echeance,
-       @id_externe, @code_client, @compte, @proprietaire, @statut, @categorie, @classification_bu, @login_adesi,
-       @nom, @prenom)
+      (@numero_ticket, @objet, @priorite, @date_promis_pour, @echeance,
+       @id_externe, @code_client, @compte, @proprietaire, @statut, @categorie, @login_adesi,
+       @nom, @prenom, @derniere_maj)
   `);
 
   db.prepare("DELETE FROM tickets").run();
@@ -143,7 +127,6 @@ const importTickets = async (onProgress) => {
     await yieldToEventLoop();
   }
 
-  console.log(`[import] ${inserted} tickets importés depuis ${fileName}`);
   return { inserted, total, file: fileName };
 };
 

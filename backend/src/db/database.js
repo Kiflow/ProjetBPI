@@ -107,7 +107,6 @@ db.exec(`
     numero_ticket TEXT NOT NULL DEFAULT '',
     objet TEXT NOT NULL DEFAULT '',
     priorite TEXT NOT NULL DEFAULT '',
-    priorite_rms TEXT NOT NULL DEFAULT '',
     date_promis_pour TEXT NOT NULL DEFAULT '',
     echeance TEXT NOT NULL DEFAULT '',
     id_externe TEXT NOT NULL DEFAULT '',
@@ -116,7 +115,6 @@ db.exec(`
     proprietaire TEXT NOT NULL DEFAULT '',
     statut TEXT NOT NULL DEFAULT '',
     categorie TEXT NOT NULL DEFAULT '',
-    classification_bu TEXT NOT NULL DEFAULT '',
     login_adesi TEXT NOT NULL DEFAULT '',
     imported_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -181,6 +179,52 @@ try {
   db.exec(`ALTER TABLE habilitation_clients ADD COLUMN bu TEXT NOT NULL DEFAULT ''`);
 } catch { /* colonne déjà présente */ }
 
+// Migration : suppression de priorite_rms et classification_bu de tickets
+try {
+  const ticketCols = db.prepare("PRAGMA table_info(tickets)").all().map(c => c.name);
+  if (ticketCols.includes("priorite_rms") || ticketCols.includes("classification_bu")) {
+    const has = (col) => ticketCols.includes(col);
+    db.exec(`
+      BEGIN;
+      CREATE TABLE tickets_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        numero_ticket TEXT NOT NULL DEFAULT '',
+        objet TEXT NOT NULL DEFAULT '',
+        priorite TEXT NOT NULL DEFAULT '',
+        date_promis_pour TEXT NOT NULL DEFAULT '',
+        echeance TEXT NOT NULL DEFAULT '',
+        id_externe TEXT NOT NULL DEFAULT '',
+        code_client TEXT NOT NULL DEFAULT '',
+        compte TEXT NOT NULL DEFAULT '',
+        proprietaire TEXT NOT NULL DEFAULT '',
+        statut TEXT NOT NULL DEFAULT '',
+        categorie TEXT NOT NULL DEFAULT '',
+        login_adesi TEXT NOT NULL DEFAULT '',
+        nom TEXT NOT NULL DEFAULT '',
+        prenom TEXT NOT NULL DEFAULT '',
+        derniere_maj TEXT NOT NULL DEFAULT '',
+        imported_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO tickets_new
+        (id, numero_ticket, objet, priorite, date_promis_pour, echeance,
+         id_externe, code_client, compte, proprietaire, statut, categorie,
+         login_adesi, nom, prenom, derniere_maj, imported_at)
+      SELECT
+        id, numero_ticket, objet, priorite, date_promis_pour, echeance,
+        id_externe, code_client, compte, proprietaire, statut, categorie,
+        ${has("login_adesi")   ? "login_adesi"   : "''"},
+        ${has("nom")           ? "nom"           : "''"},
+        ${has("prenom")        ? "prenom"        : "''"},
+        ${has("derniere_maj")  ? "derniere_maj"  : "''"},
+        imported_at
+      FROM tickets;
+      DROP TABLE tickets;
+      ALTER TABLE tickets_new RENAME TO tickets;
+      COMMIT;
+    `);
+  }
+} catch (e) { console.error("[migration] tickets cleanup:", e.message); }
+
 // Migration : ajout de template_id sur subjects
 try {
   db.exec(`ALTER TABLE subjects ADD COLUMN template_id TEXT NOT NULL DEFAULT ''`);
@@ -197,6 +241,11 @@ try {
 } catch { /* colonne déjà présente */ }
 try {
   db.exec(`ALTER TABLE tickets ADD COLUMN prenom TEXT NOT NULL DEFAULT ''`);
+} catch { /* colonne déjà présente */ }
+
+// Migration : ajout de derniere_maj sur tickets
+try {
+  db.exec(`ALTER TABLE tickets ADD COLUMN derniere_maj TEXT NOT NULL DEFAULT ''`);
 } catch { /* colonne déjà présente */ }
 
 // Migration : suppression des colonnes couleur de permanences (recréation de la table)
