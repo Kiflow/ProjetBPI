@@ -193,7 +193,7 @@ exports.getTicketsFromDb = (req, res) => {
 exports.getFiscalMonths = (req, res) => {
   const data = readUserFiscalMonths(req.user.userId);
   if (!data) return res.json(null);
-  res.json(data);
+  res.json({ months: data.months, extractionDate: data.extractionDate });
 };
 
 exports.getAttenteStats = (req, res) => {

@@ -82,7 +82,10 @@
         </div>
       </div>
       <div class="stat-card stat-card--fiscal">
-        <p class="stat-label">Tickets fermés — Année fiscale</p>
+        <div class="fiscal-header-row">
+          <p class="stat-label">Tickets fermés — Année fiscale</p>
+          <span v-if="fiscalExtractionDate" class="fiscal-extraction">Données extraites le : {{ fiscalExtractionDate }}</span>
+        </div>
         <div class="fiscal-chart">
           <svg :viewBox="`0 0 ${fiscalSvgW} ${fiscalSvgH}`" class="fiscal-svg" preserveAspectRatio="none">
             <!-- Lignes de grille -->
@@ -564,12 +567,16 @@ const donutTotal = computed(() =>
 );
 
 // Année fiscale Juin → Mai — données depuis le fichier Résumé FY
-const fiscalData = ref([]);
+const fiscalData         = ref([]);
+const fiscalExtractionDate = ref("");
 
 const loadFiscalMonths = async () => {
   try {
     const res = await api.get("/tickets/fiscal-months");
-    if (res.data) fiscalData.value = res.data;
+    if (res.data) {
+      fiscalData.value          = res.data.months        || [];
+      fiscalExtractionDate.value = res.data.extractionDate || "";
+    }
   } catch {}
 };
 
@@ -729,6 +736,8 @@ const visiblePages = computed(() => {
 .stat-card--donut .donut-wrap { flex: 1; display: flex; align-items: center; gap: 16px; margin-top: 10px; min-height: 0; }
 
 .stat-card--fiscal { padding: 14px 16px; grid-column: span 2; }
+.fiscal-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.fiscal-extraction { font-size: 11px; color: #94a3b8; white-space: nowrap; }
 
 .stat-card--attente { padding: 14px 16px; display: flex; flex-direction: column; justify-content: space-between; }
 .stat-card--attente .attente-stats { flex: 1; display: flex; align-items: center; gap: 14px; margin-top: 10px; }
