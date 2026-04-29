@@ -1,6 +1,7 @@
 const { readTickets } = require("../services/excel.service");
 const db = require("../db/database");
 const { readClients } = require("../services/clients.service");
+const { readUserFiscalMonths } = require("../services/resume-fy.service");
 
 exports.getTickets = (req, res) => {
   const tickets = readTickets();
@@ -187,6 +188,12 @@ exports.getTicketsFromDb = (req, res) => {
     .all(userId, userId, ...filterParams, limit, offset);
 
   res.json({ tickets: rows.map(mapRow), total, page, limit });
+};
+
+exports.getFiscalMonths = (req, res) => {
+  const data = readUserFiscalMonths(req.user.userId);
+  if (!data) return res.json(null);
+  res.json(data);
 };
 
 exports.getAttenteStats = (req, res) => {

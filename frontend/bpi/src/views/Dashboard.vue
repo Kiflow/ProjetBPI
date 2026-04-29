@@ -95,19 +95,19 @@
               text-anchor="end" class="fiscal-grid-label">{{ g.val }}</text>
             <!-- Barres -->
             <g v-for="(m, i) in fiscalMonths" :key="m.key">
-              <rect
-                :x="fiscalBarX(i)" :y="fiscalBarY(m.count)"
-                :width="fiscalBarW" :height="fiscalBarH(m.count)"
-                :fill="m.current ? '#1a6b3a' : '#1a3a5c'"
-                rx="2"
-              />
-              <!-- Nombre dans la barre -->
-              <text
-                :x="fiscalBarX(i) + fiscalBarW / 2"
-                :y="fiscalBarY(m.count) + fiscalBarH(m.count) - 6"
-                text-anchor="middle" class="fiscal-bar-label"
-              >{{ m.count }}</text>
-              <!-- Label mois -->
+              <template v-if="m.count !== null && m.count > 0">
+                <rect
+                  :x="fiscalBarX(i)" :y="fiscalBarY(m.count)"
+                  :width="fiscalBarW" :height="fiscalBarH(m.count)"
+                  :fill="m.current ? '#1a6b3a' : '#1a3a5c'"
+                  rx="2"
+                />
+                <text
+                  :x="fiscalBarX(i) + fiscalBarW / 2"
+                  :y="fiscalBarY(m.count) + fiscalBarH(m.count) - 6"
+                  text-anchor="middle" class="fiscal-bar-label"
+                >{{ m.count }}</text>
+              </template>
               <text
                 :x="fiscalBarX(i) + fiscalBarW / 2" :y="fiscalSvgH - fiscalPadB + 13"
                 text-anchor="middle" class="fiscal-month-label"
@@ -493,7 +493,7 @@ const fetchPage = async () => {
   }
 };
 
-onMounted(() => { fetchPage(); loadChefsDeFile(); loadAttenteStats(); });
+onMounted(() => { fetchPage(); loadChefsDeFile(); loadAttenteStats(); loadFiscalMonths(); });
 watch(currentPage, fetchPage);
 watch([pageSize, sortKey], () => { currentPage.value = 1; fetchPage(); });
 
@@ -563,26 +563,28 @@ const donutTotal = computed(() =>
   sensibleTickets.value.length + otherTickets.value.length
 );
 
-// Année fiscale Juin → Mai (données en dur pour l'instant)
-const FISCAL_DATA = [
-  { key: "jun", label: "Juin", count: 42 },
-  { key: "jul", label: "Juil", count: 38 },
-  { key: "aug", label: "Août", count: 29 },
-  { key: "sep", label: "Sep",  count: 51 },
-  { key: "oct", label: "Oct",  count: 47 },
-  { key: "nov", label: "Nov",  count: 33 },
-  { key: "dec", label: "Déc",  count: 22 },
-  { key: "jan", label: "Jan",  count: 55 },
-  { key: "feb", label: "Fév",  count: 48 },
-  { key: "mar", label: "Mar",  count: 61 },
-  { key: "apr", label: "Avr",  count: 44 },
-  { key: "may", label: "Mai",  count: 0 },
+// Année fiscale Juin → Mai — données depuis le fichier Résumé FY
+const fiscalData = ref([]);
+
+const loadFiscalMonths = async () => {
+  try {
+    const res = await api.get("/tickets/fiscal-months");
+    if (res.data) fiscalData.value = res.data;
+  } catch {}
+};
+
+const FISCAL_KEYS = [
+  { key:"jun",label:"Juin" }, { key:"jul",label:"Juil" }, { key:"aug",label:"Août" },
+  { key:"sep",label:"Sep"  }, { key:"oct",label:"Oct"  }, { key:"nov",label:"Nov"  },
+  { key:"dec",label:"Déc"  }, { key:"jan",label:"Jan"  }, { key:"feb",label:"Fév"  },
+  { key:"mar",label:"Mar"  }, { key:"apr",label:"Avr"  }, { key:"may",label:"Mai"  },
 ];
 
 const fiscalMonths = computed(() => {
   const now = new Date();
   const currentMonthKey = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"][now.getMonth()];
-  return FISCAL_DATA.map(m => ({ ...m, current: m.key === currentMonthKey }));
+  const base = fiscalData.value.length ? fiscalData.value : FISCAL_KEYS.map(m => ({ ...m, count: null }));
+  return base.map(m => ({ ...m, current: m.key === currentMonthKey }));
 });
 
 // Dimensions SVG
@@ -594,11 +596,11 @@ const fiscalPadT = 10;
 const fiscalPadB = 20;
 const fiscalBarGap = 4;
 
-const fiscalMax = computed(() => Math.max(...FISCAL_DATA.map(m => m.count), 1));
+const fiscalMax = computed(() => Math.max(...fiscalMonths.value.map(m => m.count ?? 0), 1));
 
 const fiscalChartW = computed(() => fiscalSvgW - fiscalPadL - fiscalPadR);
 const fiscalChartH = computed(() => fiscalSvgH - fiscalPadT - fiscalPadB);
-const fiscalBarW   = computed(() => (fiscalChartW.value / FISCAL_DATA.length) - fiscalBarGap);
+const fiscalBarW   = computed(() => (fiscalChartW.value / fiscalMonths.value.length) - fiscalBarGap);
 
 const fiscalBarX = (i) => fiscalPadL + i * (fiscalBarW.value + fiscalBarGap);
 const fiscalBarH = (count) => (count / fiscalMax.value) * fiscalChartH.value;
