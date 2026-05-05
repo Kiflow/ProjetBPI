@@ -5,7 +5,9 @@
       "WebFetch(domain:api.anthropic.com)",
       "Bash(python -c \"import gzip, sys; data = gzip.decompress\\(open\\('webfetch-1778007073429-aj6g4b.bin','rb'\\).read\\(\\)\\); open\\('design.html','wb'\\).write\\(data\\)\")",
       "Bash(tar -tf design.html)",
-      "Bash(tar -xf design.html \"bpi-project/project/option-a.jsx\" \"bpi-project/project/wiki-shell.jsx\" -O)"
+      "Bash(tar -xf design.html \"bpi-project/project/option-a.jsx\" \"bpi-project/project/wiki-shell.jsx\" -O)",
+      "Bash(tar -xf design2.tar \"bpi-project/project/suivi-shared.jsx\" -O)",
+      "Bash(tar -xf design2.tar \"bpi-project/project/suivi-options.jsx\" -O)"
     ]
   }
 }
