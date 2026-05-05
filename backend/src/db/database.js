@@ -278,4 +278,12 @@ try {
   }
 } catch (e) { console.error("Migration permanences:", e.message); }
 
+// Migration : ajout de project_number et notes sur subjects
+try {
+  db.exec(`ALTER TABLE subjects ADD COLUMN project_number TEXT NOT NULL DEFAULT ''`);
+} catch { /* colonne déjà présente */ }
+try {
+  db.exec(`ALTER TABLE subjects ADD COLUMN notes TEXT NOT NULL DEFAULT ''`);
+} catch { /* colonne déjà présente */ }
+
 module.exports = db;

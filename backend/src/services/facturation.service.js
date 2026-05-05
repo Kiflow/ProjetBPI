@@ -1,6 +1,7 @@
 const xlsx = require("xlsx");
 const path = require("path");
-const fs = require("fs");
+const fs   = require("fs");
+const { DATA_DIR } = require("../config/paths");
 
 const CATALOGUE_NAME = "catalogue de service interne";
 
@@ -12,8 +13,7 @@ const isMarked = (value) => {
 };
 
 const resolveCataloguePath = () => {
-  const dataDir = path.join(__dirname, "../../data");
-  const files = fs.readdirSync(dataDir);
+  const files = fs.readdirSync(DATA_DIR);
   const match = files.find((file) => {
     const lower = file.toLowerCase();
     return (
@@ -24,11 +24,11 @@ const resolveCataloguePath = () => {
 
   if (!match) {
     throw new Error(
-      "Catalogue de service interne introuvable dans backend/data."
+      `Catalogue de service interne introuvable dans ${DATA_DIR}.`
     );
   }
 
-  return path.join(dataDir, match);
+  return path.join(DATA_DIR, match);
 };
 
 const getLevelFromRow = (row) => {

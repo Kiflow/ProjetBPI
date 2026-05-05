@@ -12,4 +12,5 @@ module.exports = {
   TICKETS_PATH:          path.join(DATA_DIR, "tickets.xlsx"),
   EMPLOYEES_PATH:        path.join(DATA_DIR, "employees.csv"),
   INTERLOCUTEURS_PATH:   path.join(DATA_DIR, "interlocuteurs.csv"),
+  SUJETS_MODELE_PATH:    path.join(DATA_DIR, "Sujets_modele.csv"),
 };

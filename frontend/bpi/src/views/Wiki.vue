@@ -1,6 +1,36 @@
 <template>
   <div class="page">
 
+    <!-- SHORTCUTS BAR — téléportée sous la topbar, hors du scroll -->
+    <Teleport to="#toolbar-portal">
+    <div class="shortcuts-bar">
+      <div class="shortcuts-chips">
+        <a
+          v-for="sc in shortcuts" :key="sc.id"
+          class="shortcut-chip"
+          :href="sc.url" target="_blank" rel="noreferrer"
+        >
+          <img v-if="getFaviconUrl(sc.url)" class="shortcut-favicon" :src="getFaviconUrl(sc.url)" loading="lazy" />
+          {{ sc.title }}
+          <button v-if="showShortcutEditor" type="button" class="chip-del" @click.prevent="removeShortcut(sc.id)">✕</button>
+        </a>
+        <span v-if="!shortcuts.length && !showShortcutEditor" class="shortcuts-empty">Aucun raccourci — cliquez sur Gérer pour en ajouter.</span>
+      </div>
+      <button class="btn-ghost-sm" type="button" @click="showShortcutEditor = !showShortcutEditor">
+        {{ showShortcutEditor ? 'Fermer' : 'Gérer' }}
+      </button>
+    </div>
+
+    <form v-if="showShortcutEditor" class="shortcut-form shortcut-form--bar" @submit.prevent="addShortcut">
+      <input v-model="shortcutForm.title" type="text" placeholder="Nom du lien" required />
+      <input v-model="shortcutForm.url" type="url" placeholder="https://" required />
+      <button type="submit" class="btn-primary">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"/></svg>
+        Ajouter
+      </button>
+    </form>
+    </Teleport>
+
     <!-- TOP BAR -->
     <div class="top-bar">
       <div class="top-bar-left">
@@ -22,37 +52,6 @@
         </div>
       </div>
     </div>
-
-    <!-- SHORTCUTS BAR -->
-    <div class="shortcuts-bar">
-      <div class="shortcuts-left">
-        <span class="shortcuts-label">Raccourcis</span>
-        <div class="shortcuts-chips">
-          <a
-            v-for="sc in shortcuts" :key="sc.id"
-            class="shortcut-chip"
-            :href="sc.url" target="_blank" rel="noreferrer"
-          >
-            <img v-if="getFaviconUrl(sc.url)" class="shortcut-favicon" :src="getFaviconUrl(sc.url)" loading="lazy" />
-            {{ sc.title }}
-            <button v-if="showShortcutEditor" type="button" class="chip-del" @click.prevent="removeShortcut(sc.id)">✕</button>
-          </a>
-          <span v-if="!shortcuts.length" class="shortcuts-empty">Aucun raccourci.</span>
-        </div>
-      </div>
-      <button class="btn-ghost-sm" type="button" @click="showShortcutEditor = !showShortcutEditor">
-        {{ showShortcutEditor ? 'Fermer' : 'Gérer' }}
-      </button>
-    </div>
-
-    <form v-if="showShortcutEditor" class="shortcut-form" @submit.prevent="addShortcut">
-      <input v-model="shortcutForm.title" type="text" placeholder="Nom du lien" required />
-      <input v-model="shortcutForm.url" type="url" placeholder="https://" required />
-      <button type="submit" class="btn-primary">
-        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"/></svg>
-        Ajouter
-      </button>
-    </form>
 
     <!-- MAIN LAYOUT -->
     <div class="layout">
@@ -452,6 +451,7 @@ const closeActionMenu = () => {
   gap: 16px;
   margin: -24px;
   padding: 24px;
+  padding-top: 20px;
   min-height: calc(100% + 48px);
   background: #f8fafc;
   box-sizing: border-box;
@@ -476,25 +476,37 @@ const closeActionMenu = () => {
 .stat-num { font-size: 18px; font-weight: 700; color: #1a3a5c; line-height: 1; }
 .stat-lbl { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
 
-/* ── SHORTCUTS ───────────── */
+/* ── SHORTCUTS BAR — style favoris navigateur ── */
 .shortcuts-bar {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
-  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 0 0 10px 10px;
+  padding: 8px 24px;
+  overflow-x: auto;
+  flex-shrink: 0;
 }
-.shortcuts-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; flex-wrap: wrap; }
-.shortcuts-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
-.shortcuts-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.shortcuts-empty { font-size: 12px; color: #94a3b8; }
+.shortcuts-bar::-webkit-scrollbar { height: 0; }
+.shortcuts-chips { display: flex; gap: 4px; align-items: center; flex: 1; flex-wrap: nowrap; }
+.shortcuts-empty { font-size: 12px; color: #94a3b8; white-space: nowrap; }
 
 .shortcut-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 10px; background: #f8fafc; border: 1px solid #e2e8f0;
-  border-radius: 20px; font-size: 12px; font-weight: 600; color: #1e293b;
-  text-decoration: none; transition: border-color 0.12s;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; background: #f1f5f9; border: 1px solid #e2e8f0;
+  border-radius: 5px; font-size: 12px; font-weight: 500; color: #334155;
+  text-decoration: none; white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s;
 }
-.shortcut-chip:hover { border-color: #1a3a5c; color: #1a3a5c; }
-.shortcut-favicon { width: 14px; height: 14px; border-radius: 3px; object-fit: contain; }
+.shortcut-chip:hover { background: #e2e8f0; border-color: #cbd5e0; color: #0f172a; }
+.shortcut-favicon { width: 14px; height: 14px; border-radius: 2px; object-fit: contain; }
+
+.shortcut-form--bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 24px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
 .chip-del { border: none; background: transparent; color: #94a3b8; cursor: pointer; font-size: 12px; line-height: 1; padding: 0 0 0 2px; }
 .chip-del:hover { color: #dc2626; }
 

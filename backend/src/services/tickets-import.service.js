@@ -1,25 +1,24 @@
-const fs = require("fs");
+const fs   = require("fs");
 const path = require("path");
 const xlsx = require("xlsx");
-const db = require("../db/database");
-
-const DATA_DIR = path.join(__dirname, "../../data");
+const db   = require("../db/database");
+const { DATA_DIR, TICKETS_PATH } = require("../config/paths");
 
 const resolveFilePath = () => {
   const envPath = process.env.TICKETS_FILE_PATH;
   if (envPath && fs.existsSync(envPath)) return envPath;
 
+  if (fs.existsSync(TICKETS_PATH)) return TICKETS_PATH;
+
+  // Recherche par nom si le fichier exact n'existe pas
   const files = fs.readdirSync(DATA_DIR);
   const match = files.find((f) => {
     const lower = f.toLowerCase();
-    return (
-      lower.includes("ticket") &&
-      (lower.endsWith(".csv") || lower.endsWith(".xlsx") || lower.endsWith(".xls"))
-    );
+    return lower.includes("ticket") &&
+      (lower.endsWith(".csv") || lower.endsWith(".xlsx") || lower.endsWith(".xls"));
   });
-
-  if (!match) throw new Error("Aucun fichier tickets trouvé dans backend/data.");
-  return path.join(DATA_DIR, match);
+  if (!match) throw new Error(`Aucun fichier tickets trouvé dans ${DATA_DIR}`);
+  return `${DATA_DIR}/${match}`;
 };
 
 const normalizeKeys = (row) => {

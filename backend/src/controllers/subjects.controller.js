@@ -14,37 +14,39 @@ exports.getSubjects = (req, res) => {
 };
 
 exports.createSubject = (req, res) => {
-  const { name, description, pac, client_name, handler_id, handler_name, initial_ticket, template_id } = req.body;
+  const { name, description, pac, client_name, handler_id, handler_name, initial_ticket, template_id, project_number, notes } = req.body;
   if (!name) return res.status(400).json({ message: "name requis" });
   const id = uid();
   db.prepare(`
-    INSERT INTO subjects (id, user_id, name, description, pac, client_name, handler_id, handler_name, initial_ticket, template_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO subjects (id, user_id, name, description, pac, client_name, handler_id, handler_name, initial_ticket, template_id, project_number, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, req.user.userId,
     name, description || "",
     pac || "", client_name || "",
     handler_id || "", handler_name || "",
     initial_ticket || "",
-    template_id || ""
+    template_id || "",
+    project_number || "",
+    notes || ""
   );
   const created = db.prepare("SELECT * FROM subjects WHERE id = ?").get(id);
-  const count = { c: 0 };
-  res.status(201).json({ ...created, ticket_count: count.c });
+  res.status(201).json({ ...created, ticket_count: 0 });
 };
 
 exports.updateSubject = (req, res) => {
   const { id } = req.params;
-  const { name, description, handler_id, handler_name, initial_ticket, pac, client_name } = req.body;
+  const { name, description, handler_id, handler_name, initial_ticket, pac, client_name, project_number, notes } = req.body;
   const result = db.prepare(`
     UPDATE subjects
-    SET name = ?, description = ?, handler_id = ?, handler_name = ?, initial_ticket = ?, pac = ?, client_name = ?
+    SET name = ?, description = ?, handler_id = ?, handler_name = ?, initial_ticket = ?, pac = ?, client_name = ?, project_number = ?, notes = ?
     WHERE id = ? AND user_id = ?
   `).run(
     name, description || "",
     handler_id || "", handler_name || "",
     initial_ticket || "",
     pac || "", client_name || "",
+    project_number || "", notes || "",
     id, req.user.userId
   );
   if (result.changes === 0) return res.status(404).json({ message: "Sujet introuvable" });

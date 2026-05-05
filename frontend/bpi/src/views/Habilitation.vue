@@ -406,6 +406,7 @@ const initials = (prenom, nom) =>
 }
 
 .client-item:hover { background: #f8fafc; }
+.client-item + .client-item { border-top: 1px solid #f1f5f9; }
 .client-item.active {
   background: #eff6ff;
   border-left-color: #1a3a5c;

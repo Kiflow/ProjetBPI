@@ -4,6 +4,7 @@
       <Sidebar />
       <div class="main-layout">
         <Topbar @logout="logout" />
+        <div id="toolbar-portal" style="flex-shrink:0"></div>
         <main class="main-content">
           <router-view />
         </main>

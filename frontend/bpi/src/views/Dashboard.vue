@@ -458,7 +458,7 @@ const importFromServer = async () => {
             importFile.value = event.file;
             importDone.value = true;
             importing.value = false;
-            setTimeout(() => fetchPage(), 1500);
+            setTimeout(() => { fetchPage(); loadAttenteStats(); loadChefsDeFile(); }, 1500);
           }
         } catch { /* ligne SSE non-JSON */ }
       }

@@ -35,61 +35,34 @@
           v-for="c in filteredClients" :key="c.pac"
           type="button"
           class="client-item"
-          :class="{ active: selectedPac === c.pac && !showTemplates }"
+          :class="{ active: selectedPac === c.pac }"
           @click="selectClient(c)"
         >
           <span class="client-info">
             <span class="client-name">{{ c.name }}</span>
-            <span class="client-pac">{{ c.pac }}</span>
+            <span class="client-pac">{{ c.pac }}<span v-if="c.bu" class="client-bu"> · {{ c.bu }}</span></span>
           </span>
           <span v-if="customCountByPac[c.pac]" class="badge-count">{{ customCountByPac[c.pac] }}</span>
         </button>
       </div>
 
-      <div class="panel-footer">
-        <button class="btn-manage-tpl" :class="{ active: showTemplates }" type="button" @click="toggleTemplates">
-          <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3.5 2A1.5 1.5 0 0 0 2 3.5v13A1.5 1.5 0 0 0 3.5 18h13a1.5 1.5 0 0 0 1.5-1.5V8.621a1.5 1.5 0 0 0-.44-1.06l-4.622-4.622A1.5 1.5 0 0 0 11.879 2H3.5Zm7 1.5v3.75c0 .414.336.75.75.75h3.75L10.5 3.5Z"/></svg>
-          Gérer les modèles
+      <div v-if="totalClientPages > 1" class="pagination">
+        <button class="page-btn" :disabled="clientPage === 1" @click="clientPage--">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>
+        </button>
+        <span class="page-info">{{ clientPage }} / {{ totalClientPages }}</span>
+        <button class="page-btn" :disabled="clientPage === totalClientPages" @click="clientPage++">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
         </button>
       </div>
+
     </aside>
 
     <!-- MAIN PANEL -->
     <main class="main-panel">
 
-      <!-- Templates management view -->
-      <template v-if="showTemplates">
-        <div class="main-header">
-          <div>
-            <h1 class="main-title">Modèles de sujets</h1>
-            <p class="main-sub">Liste des sujets prédéfinis disponibles pour tous les clients</p>
-          </div>
-          <button class="btn-new" type="button" @click="openTplModal(null)">
-            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"/></svg>
-            Nouveau modèle
-          </button>
-        </div>
-        <p v-if="!templates.length" class="empty-main">Aucun modèle. Cliquez sur "Nouveau modèle" pour commencer.</p>
-        <div v-else class="tpl-list">
-          <div v-for="t in templates" :key="t.id" class="tpl-row">
-            <div class="tpl-row-info">
-              <span class="tpl-name">{{ t.name }}</span>
-              <span v-if="t.description" class="tpl-desc">{{ t.description }}</span>
-            </div>
-            <div class="tpl-row-actions">
-              <button class="icon-btn" title="Modifier" @click="openTplModal(t)">
-                <svg viewBox="0 0 20 20" fill="currentColor"><path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z"/></svg>
-              </button>
-              <button class="icon-btn icon-btn-danger" title="Supprimer" @click="deleteTemplate(t.id)">
-                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clip-rule="evenodd"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </template>
-
       <!-- Client view -->
-      <template v-else-if="selectedClient">
+      <template v-if="selectedClient">
         <div class="main-header">
           <div class="client-header-badge">
             <span class="client-avatar-lg">{{ initials(selectedClient.name) }}</span>
@@ -119,7 +92,6 @@
                 <div class="subject-name-row">
                   <span class="subject-card-name">{{ s.name }}</span>
                 </div>
-                <span v-if="s.description" class="subject-card-desc">{{ s.description }}</span>
               </div>
               <div class="subject-card-right">
                 <span v-if="s.handler_name" class="handler-chip">
@@ -127,7 +99,7 @@
                 </span>
                 <span v-else class="unassigned-chip">Non assigné</span>
                 <span class="badge-count">{{ s.ticket_count }} ticket{{ s.ticket_count !== 1 ? 's' : '' }}</span>
-                <span v-if="s.initial_ticket" class="ref-chip">Réf: {{ s.initial_ticket }}</span>
+                <span v-if="s.initial_ticket" class="ref-chip">Ticket initial : {{ s.initial_ticket }}</span>
                 <span class="ref-chip">Création : {{ formatDate(s.created_at) }}</span>
                 <div class="card-actions-row">
                   <button class="icon-btn" title="Modifier" @click.stop="openEditSubject(s)">
@@ -141,6 +113,16 @@
               </div>
             </div>
             <div v-if="expandedId === s.id" class="subject-card-body">
+              <div v-if="s.project_number || s.notes" class="subject-extra">
+                <div v-if="s.project_number" class="subject-extra-row">
+                  <span class="extra-label">N° Projet</span>
+                  <span class="extra-value">{{ s.project_number }}</span>
+                </div>
+                <div v-if="s.notes" class="subject-extra-row">
+                  <span class="extra-label">Notes</span>
+                  <span class="extra-value extra-notes">{{ s.notes }}</span>
+                </div>
+              </div>
               <TicketsPanel :subject-id="s.id" :filter-pac="selectedPac" :all-tickets="allTickets" @updated="reloadSubjectCount(s.id)" />
             </div>
           </div>
@@ -174,7 +156,7 @@
 
         <!-- Tab: depuis modèle -->
         <div v-if="addTab === 'template'" class="modal-body">
-          <p v-if="!templates.length" class="tp-empty">Aucun modèle disponible. Fermez cette fenêtre et cliquez sur <strong>"Gérer les modèles"</strong> en bas du panneau gauche.</p>
+          <p v-if="!templates.length" class="tp-empty">Aucun modèle disponible. Vérifiez que le fichier <strong>Sujets_modele.csv</strong> est présent dans le dossier data.</p>
           <template v-else>
             <label class="field">
               <span>Modèle *</span>
@@ -196,6 +178,14 @@
                 <span>Ticket initial</span>
                 <input v-model="form.initial_ticket" type="text" placeholder="Numéro du ticket de référence" />
               </label>
+              <label class="field">
+                <span>N° Projet</span>
+                <input v-model="form.project_number" type="text" placeholder="Ex: PRJ-2024-001 (optionnel)" />
+              </label>
+              <label class="field">
+                <span>Notes</span>
+                <textarea v-model="form.notes" rows="3" placeholder="Ce qui a été fait, rubriques touchées... (optionnel)" />
+              </label>
             </div>
           </template>
         </div>
@@ -207,10 +197,6 @@
             <input v-model="form.name" type="text" placeholder="Ex: Problème spécifique comptable" />
           </label>
           <label class="field">
-            <span>Description</span>
-            <textarea v-model="form.description" rows="2" placeholder="Contexte, objectif..." />
-          </label>
-          <label class="field">
             <span>Géré par</span>
             <select v-model="form.handler_id" @change="syncHandlerName">
               <option value="">— Non assigné</option>
@@ -220,6 +206,14 @@
           <label class="field">
             <span>Ticket initial</span>
             <input v-model="form.initial_ticket" type="text" placeholder="Numéro du ticket de référence" />
+          </label>
+          <label class="field">
+            <span>N° Projet</span>
+            <input v-model="form.project_number" type="text" placeholder="Ex: PRJ-2024-001 (optionnel)" />
+          </label>
+          <label class="field">
+            <span>Notes</span>
+            <textarea v-model="form.notes" rows="3" placeholder="Ce qui a été fait, rubriques touchées... (optionnel)" />
           </label>
         </div>
 
@@ -244,10 +238,6 @@
             <input v-model="form.name" type="text" />
           </label>
           <label class="field">
-            <span>Description</span>
-            <textarea v-model="form.description" rows="2" />
-          </label>
-          <label class="field">
             <span>Géré par</span>
             <select v-model="form.handler_id" @change="syncHandlerName">
               <option value="">— Non assigné</option>
@@ -258,6 +248,14 @@
             <span>Ticket initial</span>
             <input v-model="form.initial_ticket" type="text" placeholder="Numéro du ticket de référence" />
           </label>
+          <label class="field">
+            <span>N° Projet</span>
+            <input v-model="form.project_number" type="text" placeholder="Ex: PRJ-2024-001 (optionnel)" />
+          </label>
+          <label class="field">
+            <span>Notes</span>
+            <textarea v-model="form.notes" rows="3" placeholder="Ce qui a été fait, rubriques touchées... (optionnel)" />
+          </label>
         </div>
         <div class="modal-foot">
           <button class="btn-primary" @click="submitEditModal">Enregistrer</button>
@@ -267,36 +265,12 @@
       </div>
     </div>
 
-    <!-- MODAL: Créer / Modifier un modèle -->
-    <div v-if="showTplModal" class="overlay" @click.self="showTplModal = false">
-      <div class="modal">
-        <div class="modal-head">
-          <h3>{{ editTpl ? 'Modifier le modèle' : 'Nouveau modèle' }}</h3>
-          <button class="close-btn" @click="showTplModal = false">✕</button>
-        </div>
-        <div class="modal-body">
-          <label class="field">
-            <span>Nom *</span>
-            <input v-model="tplForm.name" type="text" placeholder="Ex: PNM 1 - Prime non mensuel 1" />
-          </label>
-          <label class="field">
-            <span>Description</span>
-            <textarea v-model="tplForm.description" rows="2" placeholder="Contexte, objectif..." />
-          </label>
-        </div>
-        <div class="modal-foot">
-          <button class="btn-primary" @click="submitTplModal">{{ editTpl ? 'Enregistrer' : 'Créer' }}</button>
-          <button class="btn-ghost" @click="showTplModal = false">Annuler</button>
-        </div>
-        <p v-if="tplError" class="form-error">{{ tplError }}</p>
-      </div>
-    </div>
 
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, defineComponent, h } from "vue";
+import { ref, computed, watch, onMounted, defineComponent, h } from "vue";
 import api from "../services/api";
 
 const vClickOutside = {
@@ -427,25 +401,18 @@ const selectedBus   = ref(new Set());
 const buDropdownOpen = ref(false);
 const closeBuDropdown = () => { buDropdownOpen.value = false; };
 const selectedPac = ref(null);
-const showTemplates = ref(false);
 const expandedId = ref(null);
 
 // Add subject modal
 const showAddModal = ref(false);
 const addTab = ref("template");
 const selectedTplId = ref(null);
-const form = ref({ name: "", description: "", handler_id: "", handler_name: "", initial_ticket: "" });
+const form = ref({ name: "", description: "", handler_id: "", handler_name: "", initial_ticket: "", project_number: "", notes: "" });
 const formError = ref("");
 
 // Edit subject modal
 const showEditModal = ref(false);
 const editSubjectRef = ref(null);
-
-// Template management modal
-const showTplModal = ref(false);
-const editTpl = ref(null);
-const tplForm = ref({ name: "", description: "" });
-const tplError = ref("");
 
 // ── Computed ───────────────────────────────────────────────────────────────
 const normalize = (v) => String(v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -460,13 +427,24 @@ const toggleBu = (bu) => {
   selectedBus.value = s;
 };
 
-const filteredClients = computed(() => {
+const PAGE_SIZE = 20;
+const clientPage = ref(1);
+
+const filteredClientsAll = computed(() => {
   const q = normalize(clientSearch.value);
   return allClients.value
     .filter(c => !q || normalize(c.pac).includes(q) || normalize(c.name).includes(q))
-    .filter(c => !selectedBus.value.size || selectedBus.value.has(c.bu))
-    .slice(0, 120);
+    .filter(c => !selectedBus.value.size || selectedBus.value.has(c.bu));
 });
+
+const totalClientPages = computed(() => Math.max(1, Math.ceil(filteredClientsAll.value.length / PAGE_SIZE)));
+
+const filteredClients = computed(() => {
+  const start = (clientPage.value - 1) * PAGE_SIZE;
+  return filteredClientsAll.value.slice(start, start + PAGE_SIZE);
+});
+
+watch([clientSearch, selectedBus], () => { clientPage.value = 1; });
 
 const selectedClient = computed(() => allClients.value.find(c => c.pac === selectedPac.value) || null);
 
@@ -523,9 +501,9 @@ const loadTeamMembers = async () => {
 
 onMounted(() => { loadSubjects(); loadTemplates(); loadClients(); loadTickets(); loadTeamMembers(); });
 
+
 // ── Actions ────────────────────────────────────────────────────────────────
-const selectClient = (c) => { selectedPac.value = c.pac; showTemplates.value = false; expandedId.value = null; subjectSearch.value = ""; };
-const toggleTemplates = () => { showTemplates.value = !showTemplates.value; if (showTemplates.value) { selectedPac.value = null; expandedId.value = null; } };
+const selectClient = (c) => { selectedPac.value = c.pac; expandedId.value = null; subjectSearch.value = ""; };
 const toggleExpand = (id) => { expandedId.value = expandedId.value === id ? null : id; };
 
 const syncHandlerName = () => {
@@ -537,7 +515,7 @@ const syncHandlerName = () => {
 const openAddSubjectModal = () => {
   addTab.value = "template";
   selectedTplId.value = null;
-  form.value = { name: "", description: "", handler_id: "", handler_name: "", initial_ticket: "" };
+  form.value = { name: "", description: "", handler_id: "", handler_name: "", initial_ticket: "", project_number: "", notes: "" };
   formError.value = "";
   showAddModal.value = true;
 };
@@ -555,6 +533,8 @@ const submitAddModal = async () => {
     handler_id: form.value.handler_id,
     handler_name: form.value.handler_name,
     initial_ticket: form.value.initial_ticket,
+    project_number: form.value.project_number,
+    notes: form.value.notes,
   };
 
   if (addTab.value === "template") {
@@ -580,7 +560,7 @@ const submitAddModal = async () => {
 // Edit existing subject
 const openEditSubject = (s) => {
   editSubjectRef.value = s;
-  form.value = { name: s.name, description: s.description, handler_id: s.handler_id, handler_name: s.handler_name, initial_ticket: s.initial_ticket };
+  form.value = { name: s.name, description: s.description, handler_id: s.handler_id, handler_name: s.handler_name, initial_ticket: s.initial_ticket, project_number: s.project_number || "", notes: s.notes || "" };
   formError.value = "";
   showEditModal.value = true;
 };
@@ -592,7 +572,9 @@ const submitEditModal = async () => {
     const res = await api.put(`/subjects/${editSubjectRef.value.id}`, {
       ...form.value,
       pac: editSubjectRef.value.pac,
-      client_name: editSubjectRef.value.client_name
+      client_name: editSubjectRef.value.client_name,
+      project_number: form.value.project_number,
+      notes: form.value.notes,
     });
     subjects.value = subjects.value.map(s => s.id === editSubjectRef.value.id ? res.data : s);
     showEditModal.value = false;
@@ -616,37 +598,6 @@ const reloadSubjectCount = async (id) => {
   } catch {}
 };
 
-// Templates CRUD
-const openTplModal = (t) => {
-  editTpl.value = t;
-  tplForm.value = { name: t?.name || "", description: t?.description || "" };
-  tplError.value = "";
-  showTplModal.value = true;
-};
-
-const submitTplModal = async () => {
-  tplError.value = "";
-  if (!tplForm.value.name.trim()) { tplError.value = "Le nom est requis."; return; }
-  try {
-    if (editTpl.value) {
-      const res = await api.put(`/subject-templates/${editTpl.value.id}`, tplForm.value);
-      templates.value = templates.value.map(t => t.id === editTpl.value.id ? res.data : t);
-    } else {
-      const res = await api.post("/subject-templates", tplForm.value);
-      templates.value.push(res.data);
-      templates.value.sort((a, b) => a.name.localeCompare(b.name));
-    }
-    showTplModal.value = false;
-  } catch (e) { tplError.value = e?.response?.data?.message || "Erreur."; }
-};
-
-const deleteTemplate = async (id) => {
-  if (!confirm("Supprimer ce modèle ? Les sujets clients déjà créés depuis ce modèle ne seront pas supprimés.")) return;
-  try {
-    await api.delete(`/subject-templates/${id}`);
-    templates.value = templates.value.filter(t => t.id !== id);
-  } catch {}
-};
 </script>
 
 <style scoped>
@@ -700,6 +651,20 @@ const deleteTemplate = async (id) => {
 .search-input { width: 100%; padding: 6px 8px 6px 28px; border: 1px solid #e2e8f0; border-radius: 7px; font-size: 12px; background: #f8fafc; box-sizing: border-box; }
 
 .client-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+
+.pagination {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 12px; border-top: 1px solid #f1f5f9; flex-shrink: 0;
+}
+.page-btn {
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc;
+  color: #64748b; cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+.page-btn svg { width: 14px; height: 14px; }
+.page-btn:hover:not(:disabled) { background: #1a3a5c; color: #fff; border-color: #1a3a5c; }
+.page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.page-info { font-size: 12px; font-weight: 600; color: #475569; min-width: 44px; text-align: center; }
 .empty-group { padding: 8px 14px; font-size: 12px; color: #94a3b8; }
 
 .client-item {
@@ -710,6 +675,7 @@ const deleteTemplate = async (id) => {
 }
 .client-item:hover { background: #f8fafc; }
 .client-item.active { background: #eff6ff; border-left-color: #1a3a5c; }
+.client-item + .client-item { border-top: 1px solid #f1f5f9; }
 
 .client-avatar {
   width: 32px; height: 32px; border-radius: 50%;
@@ -720,16 +686,7 @@ const deleteTemplate = async (id) => {
 .client-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .client-name { font-size: 12px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .client-pac { font-size: 11px; color: #94a3b8; }
-
-.panel-footer { border-top: 1px solid #f1f5f9; padding: 10px 12px; }
-.btn-manage-tpl {
-  width: 100%; display: flex; align-items: center; gap: 7px;
-  padding: 7px 10px; border: 1px solid #e2e8f0;
-  background: #f8fafc; color: #64748b; border-radius: 7px;
-  font-size: 12px; font-weight: 600; cursor: pointer;
-}
-.btn-manage-tpl svg { width: 13px; height: 13px; flex-shrink: 0; }
-.btn-manage-tpl:hover, .btn-manage-tpl.active { background: #1a3a5c; color: #fff; border-color: #1a3a5c; }
+.client-bu { color: #94a3b8; }
 
 /* ── MAIN PANEL ─────────────────── */
 .main-panel { flex: 1; min-width: 0; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; }
@@ -790,7 +747,6 @@ const deleteTemplate = async (id) => {
 .subject-card-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .subject-name-row { display: flex; align-items: center; gap: 8px; }
 .subject-card-name { font-size: 14px; font-weight: 600; color: #1e293b; }
-.subject-card-desc { font-size: 12px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px; }
 
 .subject-card-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
@@ -832,7 +788,13 @@ const deleteTemplate = async (id) => {
 .icon-btn svg { width: 14px; height: 14px; }
 .icon-btn-danger:hover { background: #fee2e2; color: #dc2626; }
 
-.subject-card-body { border-top: 1px solid #f1f5f9; padding: 14px 16px; background: #fafbfc; }
+.subject-card-body { border-top: 1px solid #f1f5f9; padding: 14px 16px; background: #fafbfc; display: flex; flex-direction: column; gap: 14px; }
+
+.subject-extra { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
+.subject-extra-row { display: flex; gap: 10px; align-items: flex-start; }
+.extra-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; min-width: 80px; padding-top: 1px; flex-shrink: 0; }
+.extra-value { font-size: 13px; color: #334155; }
+.extra-notes { white-space: pre-wrap; line-height: 1.5; }
 
 /* ── Modal ─────────────────────── */
 .overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
