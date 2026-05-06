@@ -142,7 +142,7 @@
         </div>
 
         <!-- Drawer body -->
-        <div class="drawer-body">
+        <div class="drawer-body" :class="{ 'drawer-body--timeline': detailSection === 'timeline' }">
 
           <!-- Aperçu -->
           <template v-if="detailSection === 'overview'">
@@ -177,8 +177,27 @@
           <template v-else-if="detailSection === 'comments'">
             <ul v-if="selectedDetailEntry.comments.length" class="comment-list">
               <li v-for="c in [...selectedDetailEntry.comments].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))" :key="c.id" class="comment-item">
-                <div class="comment-text">{{ c.text }}</div>
-                <div class="comment-meta">{{ c.by }} · {{ formatDate(c.createdAt) }}</div>
+                <template v-if="editingCommentId === c.id">
+                  <textarea v-model="editingCommentText" rows="3" class="comment-textarea" style="margin-bottom:6px;"></textarea>
+                  <div class="comment-edit-foot">
+                    <button type="button" class="btn-primary" style="padding:5px 12px;font-size:12px;" :disabled="!editingCommentText.trim()" @click="submitEditComment(c.id)">Enregistrer</button>
+                    <button type="button" class="btn-ghost" style="padding:5px 10px;font-size:12px;" @click="editingCommentId = null">Annuler</button>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="comment-text">{{ c.text }}</div>
+                  <div class="comment-meta">
+                    <span>{{ c.by }} · {{ formatDate(c.createdAt) }}</span>
+                    <span v-if="c.by === currentActor" class="comment-actions">
+                      <button type="button" class="comment-action-btn" title="Modifier" @click="startEditComment(c)">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z"/></svg>
+                      </button>
+                      <button type="button" class="comment-action-btn comment-action-btn--danger" title="Supprimer" @click="deleteComment(c.id)">
+                        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clip-rule="evenodd"/></svg>
+                      </button>
+                    </span>
+                  </div>
+                </template>
               </li>
             </ul>
             <p v-else class="drawer-empty">Aucun commentaire pour l'instant.</p>
@@ -208,19 +227,38 @@
           <!-- Historique -->
           <template v-else-if="detailSection === 'timeline'">
             <p v-if="!selectedTimelineEvents.length" class="drawer-empty">Aucun événement.</p>
-            <div v-else class="timeline">
-              <div v-for="event in selectedTimelineEvents" :key="event.id" class="timeline-item">
-                <div class="timeline-dot" :class="`timeline-dot--${event.type}`"></div>
-                <div class="timeline-content">
-                  <div class="timeline-action">{{ event.action }}</div>
-                  <div class="timeline-detail">
-                    <span v-if="event.previousStatus && event.previousStatus !== '-'">{{ event.previousStatus }}</span>
-                    <span v-if="event.nextStatus"> → {{ event.nextStatus }}</span>
+            <template v-else>
+              <div class="timeline-scroll">
+              <div class="timeline">
+                <div v-for="event in pagedTimelineEvents" :key="event.id" class="timeline-item">
+                  <div class="timeline-dot" :class="`timeline-dot--${event.type}`"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-label">{{ event.label }}</div>
+                    <div class="timeline-values">
+                      <div v-if="event.oldValue" class="tl-row" :class="{ 'tl-row--block': isCommentType(event.type) }">
+                        <span class="tl-key">Ancienne valeur :</span>
+                        <span class="tl-val">{{ event.oldValue }}</span>
+                      </div>
+                      <div v-if="event.newValue" class="tl-row" :class="{ 'tl-row--block': isCommentType(event.type) }">
+                        <span class="tl-key">Nouvelle valeur :</span>
+                        <span class="tl-val">{{ event.newValue }}</span>
+                      </div>
+                    </div>
+                    <div class="timeline-meta">{{ event.by }} · {{ formatTimelineDate(event.at) }}</div>
                   </div>
-                  <div class="timeline-meta">{{ event.by }} · {{ formatTimelineDate(event.at) }}</div>
                 </div>
               </div>
-            </div>
+              </div>
+              <div v-if="timelineTotalPages > 1" class="tl-pagination">
+                <button class="tl-page-btn" :disabled="timelinePage === 1" @click="timelinePage--">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>
+                </button>
+                <span class="tl-page-info">{{ timelinePage }} / {{ timelineTotalPages }}</span>
+                <button class="tl-page-btn" :disabled="timelinePage === timelineTotalPages" @click="timelinePage++">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>
+                </button>
+              </div>
+            </template>
           </template>
 
         </div>
@@ -336,9 +374,11 @@ const errorMessage  = ref("");
 const clientWrap    = ref(null);
 const showClientDropdown = ref(false);
 
-const selectedDetailId = ref(null);
-const detailSection    = ref("overview");
-const detailComment    = ref("");
+const selectedDetailId    = ref(null);
+const detailSection       = ref("overview");
+const detailComment       = ref("");
+const editingCommentId    = ref(null);
+const editingCommentText  = ref("");
 
 const toast = ref(null);
 let toastTimer = null;
@@ -392,21 +432,60 @@ const getCurrentActor = () => {
   try { const u = JSON.parse(localStorage.getItem("user") || "{}"); return `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.userId || "Système"; }
   catch { return "Système"; }
 };
+const currentActor = getCurrentActor();
+const isCommentType = (type) => ["comment", "comment_edited", "comment_deleted"].includes(type);
 
 // ── Timeline ───────────────────────────────────────────────────────────────
 const timelineEvents = (entry) => {
   if (!entry) return [];
   const evts = [];
-  if (entry.addedAt) evts.push({ id: `${entry.id}-added`, type: "added", at: entry.addedAt, by: entry.createdBy || "Système" });
-  (entry.statusHistory || []).forEach(h => { if (h?.at) evts.push({ id: h.id, type: "status", at: h.at, status: h.status, by: h.by || "Système" }); });
-  (entry.comments || []).forEach(c => { if (c?.createdAt) evts.push({ id: c.id, type: "comment", at: c.createdAt, text: c.text, by: c.by || "Système" }); });
+  (entry.statusHistory || []).forEach(h => {
+    if (h?.at) evts.push({ id: h.id, type: h.type || "status", at: h.at, status: h.status, by: h.by || "Système", oldValue: h.oldValue || "", newValue: h.newValue || "" });
+  });
+  (entry.comments || []).forEach(c => {
+    if (c?.createdAt) evts.push({ id: c.id, type: "comment", at: c.createdAt, text: c.text, by: c.by || "Système" });
+  });
   evts.sort((a, b) => new Date(a.at) - new Date(b.at));
+
+  const LABELS = {
+    added:           "Ajout au suivi",
+    status:          "Changement de liste",
+    removed:         "Retrait du suivi",
+    restored:        "Remise en suivi",
+    comment:         "Commentaire ajouté",
+    comment_edited:  "Commentaire modifié",
+    comment_deleted: "Commentaire supprimé",
+  };
+
   let cur = "";
   return evts.map(ev => {
-    if (ev.type === "added") { cur = entry.status; return { ...ev, action: "Ajout client", previousStatus: "-", nextStatus: statusLabel(cur) }; }
-    if (ev.type === "status") { const p = cur ? statusLabel(cur) : "-"; cur = ev.status; return { ...ev, action: "Mise à jour du statut", previousStatus: p, nextStatus: statusLabel(cur) }; }
-    return { ...ev, action: ev.text || "Commentaire", previousStatus: cur ? statusLabel(cur) : "-", nextStatus: "" };
-  });
+    const label = LABELS[ev.type] || "Événement";
+    if (ev.type === "added") {
+      cur = ev.status;
+      return { ...ev, label, oldValue: null, newValue: statusLabel(ev.status) };
+    }
+    if (ev.type === "status") {
+      const prev = cur ? statusLabel(cur) : null;
+      cur = ev.status;
+      return { ...ev, label, oldValue: prev, newValue: statusLabel(ev.status) };
+    }
+    if (ev.type === "removed") {
+      const prev = cur ? statusLabel(cur) : null;
+      return { ...ev, label, oldValue: prev, newValue: null };
+    }
+    if (ev.type === "restored") {
+      cur = ev.status;
+      return { ...ev, label, oldValue: null, newValue: statusLabel(ev.status) };
+    }
+    if (ev.type === "comment_edited") {
+      return { ...ev, label, oldValue: ev.oldValue || null, newValue: ev.newValue || null };
+    }
+    if (ev.type === "comment_deleted") {
+      return { ...ev, label, oldValue: ev.oldValue || null, newValue: null };
+    }
+    // comment ajouté
+    return { ...ev, label, oldValue: null, newValue: ev.text };
+  }).reverse();
 };
 
 // ── Computed ───────────────────────────────────────────────────────────────
@@ -436,6 +515,17 @@ const addedThisMonth  = computed(() => {
 
 const selectedDetailEntry = computed(() => mergedEntries.value.find(e => e.id === selectedDetailId.value) || null);
 const selectedTimelineEvents = computed(() => timelineEvents(selectedDetailEntry.value));
+
+const TIMELINE_PAGE_SIZE = 8;
+const timelinePage = ref(1);
+const timelineTotalPages = computed(() => Math.max(1, Math.ceil(selectedTimelineEvents.value.length / TIMELINE_PAGE_SIZE)));
+const pagedTimelineEvents = computed(() => {
+  const start = (timelinePage.value - 1) * TIMELINE_PAGE_SIZE;
+  return selectedTimelineEvents.value.slice(start, start + TIMELINE_PAGE_SIZE);
+});
+
+watch(selectedDetailId, () => { timelinePage.value = 1; });
+watch(detailSection,    () => { timelinePage.value = 1; });
 
 const filteredClients = computed(() => {
   const q = normalize(clientQuery.value);
@@ -505,11 +595,37 @@ const submitModal = async () => {
 const removeClient = async (id) => {
   if (!confirm("Retirer ce client du suivi ?")) return;
   try {
-    await api.delete(`/suivi/${id}`);
+    await api.delete(`/suivi/${id}`, { params: { by: getCurrentActor() } });
     trackedEntries.value = trackedEntries.value.filter(e => e.id !== id);
     if (selectedDetailId.value === id) selectedDetailId.value = null;
     showToast("Client retiré du suivi");
   } catch {}
+};
+
+const startEditComment = (c) => { editingCommentId.value = c.id; editingCommentText.value = c.text; };
+
+const submitEditComment = async (commentId) => {
+  const text = editingCommentText.value.trim();
+  if (!text) return;
+  try {
+    const res = await api.put(`/suivi/comments/${commentId}`, { text, by: currentActor });
+    const entry = trackedEntries.value.find(e => e.id === selectedDetailId.value);
+    if (entry) {
+      entry.comments = entry.comments.map(c => c.id === commentId ? { ...c, text: res.data.text } : c);
+    }
+    editingCommentId.value = null;
+    showToast("Commentaire modifié");
+  } catch { showToast("Erreur lors de la modification"); }
+};
+
+const deleteComment = async (commentId) => {
+  if (!confirm("Supprimer ce commentaire ?")) return;
+  try {
+    await api.delete(`/suivi/comments/${commentId}`, { params: { by: currentActor } });
+    const entry = trackedEntries.value.find(e => e.id === selectedDetailId.value);
+    if (entry) entry.comments = entry.comments.filter(c => c.id !== commentId);
+    showToast("Commentaire supprimé");
+  } catch { showToast("Erreur lors de la suppression"); }
 };
 
 const addCommentFromDetails = async () => {
@@ -595,6 +711,7 @@ h1 { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;
   background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
   display: flex; flex-direction: column; overflow: hidden;
   box-shadow: 0 4px 12px rgba(15,23,42,0.04);
+  min-height: 0; height: 100%;
 }
 
 .tabs-row {
@@ -663,6 +780,7 @@ h1 { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;
   background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
   display: flex; flex-direction: column; overflow: hidden;
   box-shadow: 0 4px 12px rgba(15,23,42,0.04);
+  min-height: 0; height: 100%;
 }
 .drawer--empty {
   align-items: center; justify-content: center;
@@ -696,7 +814,8 @@ h1 { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;
 }
 .drawer-tab.active .drawer-tab-count { background: #0f2742; color: #fff; }
 
-.drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.drawer-body--timeline { overflow-y: hidden; }
 .drawer-empty { font-size: 13px; color: #94a3b8; text-align: center; padding: 24px 0; }
 
 /* Overview */
@@ -708,14 +827,24 @@ h1 { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;
 .ov-info-label { font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
 .ov-info-row { font-size: 13px; color: #475569; line-height: 1.6; }
 .ov-last-comment { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; }
-.ov-comment-text { font-size: 13.5px; color: #0f172a; line-height: 1.5; margin-bottom: 6px; }
+.ov-comment-text { font-size: 13.5px; color: #0f172a; line-height: 1.5; margin-bottom: 6px; white-space: pre-wrap; }
 .ov-comment-meta { font-size: 11.5px; color: #94a3b8; }
 
 /* Comments */
 .comment-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
 .comment-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 11px 13px; }
-.comment-text { font-size: 13.5px; color: #0f172a; line-height: 1.5; margin-bottom: 6px; }
-.comment-meta { display: flex; justify-content: space-between; font-size: 11.5px; color: #94a3b8; }
+.comment-text { font-size: 13.5px; color: #0f172a; line-height: 1.5; margin-bottom: 6px; white-space: pre-wrap; }
+.comment-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: #94a3b8; }
+.comment-actions { display: flex; gap: 2px; }
+.comment-action-btn {
+  width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: transparent; border-radius: 5px; cursor: pointer; color: #94a3b8;
+  transition: background 0.12s, color 0.12s;
+}
+.comment-action-btn svg { width: 12px; height: 12px; }
+.comment-action-btn:hover { background: #f1f5f9; color: #1e293b; }
+.comment-action-btn--danger:hover { background: #fee2e2; color: #dc2626; }
+.comment-edit-foot { display: flex; gap: 6px; }
 .comment-add { border-top: 1px solid #f1f5f9; padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .comment-textarea {
   width: 100%; padding: 9px 11px; border: 1px solid #e2e8f0; border-radius: 8px;
@@ -743,9 +872,36 @@ h1 { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;
 .timeline-dot--status  { background: #16a34a; }
 .timeline-dot--comment { background: #94a3b8; }
 .timeline-content { padding-left: 2px; }
-.timeline-action { font-size: 13px; font-weight: 600; color: #0f172a; margin-bottom: 2px; }
-.timeline-detail { font-size: 12px; color: #64748b; margin-bottom: 3px; }
+.timeline-label { font-size: 13px; font-weight: 600; color: #0f172a; margin-bottom: 5px; }
+.timeline-values { display: flex; flex-direction: column; gap: 3px; margin-bottom: 5px; }
+.tl-row { display: flex; align-items: baseline; gap: 6px; font-size: 12px; }
+.tl-key { color: #94a3b8; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+.tl-val { font-weight: 500; padding: 1px 7px; border-radius: 5px; background: #f1f5f9; color: #334155; }
+.tl-row--block { flex-direction: column; align-items: flex-start; gap: 3px; }
+.tl-row--block .tl-val { white-space: pre-wrap; font-weight: 400; padding: 6px 10px; border-radius: 6px; width: 100%; box-sizing: border-box; }
 .timeline-meta { font-size: 11.5px; color: #94a3b8; }
+
+.timeline-scroll {
+  flex: 1; min-height: 0; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: #cbd5e0 transparent;
+}
+.timeline-scroll::-webkit-scrollbar { width: 5px; }
+.timeline-scroll::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 4px; }
+.timeline-scroll::-webkit-scrollbar-track { background: transparent; }
+
+.tl-pagination {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding-top: 12px; border-top: 1px solid #f1f5f9; margin-top: 4px;
+}
+.tl-page-btn {
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc;
+  color: #64748b; cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+.tl-page-btn svg { width: 14px; height: 14px; }
+.tl-page-btn:hover:not(:disabled) { background: #1a3a5c; color: #fff; border-color: #1a3a5c; }
+.tl-page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.tl-page-info { font-size: 12px; font-weight: 600; color: #475569; min-width: 40px; text-align: center; }
 
 /* ── MODAL ───────────────────── */
 .overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 24px; }

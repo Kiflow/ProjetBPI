@@ -6,7 +6,8 @@
       <div class="shortcuts-bar" @click.stop>
         <div class="shortcuts-chips">
           <a v-for="sc in shortcuts" :key="sc.id" class="shortcut-chip" :href="sc.url" target="_blank" rel="noreferrer">
-            <img v-if="getFaviconUrl(sc.url)" class="shortcut-favicon" :src="getFaviconUrl(sc.url)" loading="lazy" />
+            <img v-if="getFaviconUrl(sc.url) && !failedFavicons.has(sc.url)" class="shortcut-favicon" :src="getFaviconUrl(sc.url)" loading="lazy" @error="markFaviconFailed(sc.url)" />
+            <span v-else class="favicon-letter" :style="{ background: letterColor(sc.title) }">{{ (sc.title || '?')[0].toUpperCase() }}</span>
             {{ sc.title }}
             <button v-if="showShortcutEditor" type="button" class="chip-del" @click.prevent="removeShortcut(sc.id)">✕</button>
           </a>
@@ -133,7 +134,8 @@
             <div class="drag-handle">
               <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2Zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8Zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14Zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6Zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8Zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14Z"/></svg>
             </div>
-            <img v-if="getFaviconUrl(wiki.url)" class="wiki-favicon" :src="getFaviconUrl(wiki.url)" loading="lazy" />
+            <img v-if="getFaviconUrl(wiki.url) && !failedFavicons.has(wiki.url)" class="wiki-favicon" :src="getFaviconUrl(wiki.url)" loading="lazy" @error="markFaviconFailed(wiki.url)" />
+            <span v-else class="wiki-favicon-letter" :style="{ background: letterColor(wiki.name) }">{{ (wiki.name || '?')[0].toUpperCase() }}</span>
             <div class="wiki-info">
               <span class="wiki-name">{{ wiki.name }}</span>
               <span class="wiki-url">{{ wiki.url }}</span>
@@ -361,8 +363,17 @@ const groupedWikis = computed(() => {
 const filteredTotal = computed(() => groupedWikis.value.reduce((sum, g) => sum + g.items.length, 0));
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+const failedFavicons = ref(new Set());
+const markFaviconFailed = (url) => { failedFavicons.value = new Set([...failedFavicons.value, url]); };
+
+const letterPalette = ["#1a3a5c","#0891b2","#7c3aed","#b45309","#16a34a","#db2777","#0f766e","#dc2626","#475569","#2e5f8a"];
+const letterColor = (name) => {
+  let h = 0; for (let i = 0; i < (name || "").length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return letterPalette[Math.abs(h) % letterPalette.length];
+};
+
 const getFaviconUrl = (url) => {
-  try { const { hostname } = new URL(url); return hostname ? `https://www.google.com/s2/favicons?domain=${hostname}&sz=64` : ""; }
+  try { const { origin } = new URL(url); return origin ? `${origin}/favicon.ico` : ""; }
   catch { return ""; }
 };
 
@@ -566,7 +577,12 @@ const copyLink = (url) => {
   transition: background 0.12s, border-color 0.12s;
 }
 .shortcut-chip:hover { background: #e2e8f0; border-color: #cbd5e0; color: #0f172a; }
-.shortcut-favicon { width: 14px; height: 14px; border-radius: 2px; object-fit: contain; }
+.shortcut-favicon { width: 14px; height: 14px; border-radius: 3px; object-fit: contain; flex-shrink: 0; }
+.favicon-letter {
+  width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: #fff; line-height: 1;
+}
 .chip-del { border: none; background: transparent; color: #94a3b8; cursor: pointer; font-size: 12px; line-height: 1; padding: 0 0 0 2px; }
 .chip-del:hover { color: #dc2626; }
 .shortcut-add-bar {
@@ -731,7 +747,12 @@ const copyLink = (url) => {
 .wiki-row:hover .drag-handle { color: #cbd5e0; }
 .drag-handle svg { width: 14px; height: 14px; }
 
-.wiki-favicon { width: 18px; height: 18px; border-radius: 3px; object-fit: contain; }
+.wiki-favicon { width: 18px; height: 18px; border-radius: 3px; object-fit: contain; flex-shrink: 0; }
+.wiki-favicon-letter {
+  width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff; line-height: 1;
+}
 
 .wiki-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .wiki-name { font-size: 12.5px; font-weight: 600; color: #334155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

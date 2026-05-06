@@ -286,4 +286,64 @@ try {
   db.exec(`ALTER TABLE subjects ADD COLUMN notes TEXT NOT NULL DEFAULT ''`);
 } catch { /* colonne déjà présente */ }
 
+// Migration : soft-delete sur suivi_entries
+try {
+  db.exec(`ALTER TABLE suivi_entries ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`);
+} catch { /* colonne déjà présente */ }
+
+// Migration : type sur suivi_status_history
+try {
+  db.exec(`ALTER TABLE suivi_status_history ADD COLUMN type TEXT NOT NULL DEFAULT 'status'`);
+} catch { /* colonne déjà présente */ }
+try {
+  db.exec(`ALTER TABLE suivi_status_history ADD COLUMN old_value TEXT NOT NULL DEFAULT ''`);
+} catch { /* colonne déjà présente */ }
+try {
+  db.exec(`ALTER TABLE suivi_status_history ADD COLUMN new_value TEXT NOT NULL DEFAULT ''`);
+} catch { /* colonne déjà présente */ }
+
+// Migration : suppression du ON DELETE CASCADE sur suivi_comments et suivi_status_history
+// pour que l'historique survive au soft-delete des entrées
+try {
+  const commentCols = db.prepare("PRAGMA table_info(suivi_comments)").all().map(c => c.name);
+  const historyCols = db.prepare("PRAGMA table_info(suivi_status_history)").all().map(c => c.name);
+  // Vérifie si le CASCADE est encore actif en inspectant la définition de la table
+  const commentDef = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='suivi_comments'").get();
+  if (commentDef && commentDef.sql && commentDef.sql.includes("ON DELETE CASCADE")) {
+    db.exec(`
+      BEGIN;
+      CREATE TABLE suivi_comments_new (
+        id TEXT PRIMARY KEY,
+        entry_id TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        by TEXT NOT NULL DEFAULT ''
+      );
+      INSERT INTO suivi_comments_new SELECT id, entry_id, text, created_at, by FROM suivi_comments;
+      DROP TABLE suivi_comments;
+      ALTER TABLE suivi_comments_new RENAME TO suivi_comments;
+      COMMIT;
+    `);
+  }
+  const historyDef = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='suivi_status_history'").get();
+  if (historyDef && historyDef.sql && historyDef.sql.includes("ON DELETE CASCADE")) {
+    const hasType = historyCols.includes("type");
+    db.exec(`
+      BEGIN;
+      CREATE TABLE suivi_status_history_new (
+        id TEXT PRIMARY KEY,
+        entry_id TEXT NOT NULL,
+        status TEXT NOT NULL,
+        at TEXT NOT NULL,
+        by TEXT NOT NULL DEFAULT '',
+        type TEXT NOT NULL DEFAULT 'status'
+      );
+      INSERT INTO suivi_status_history_new SELECT id, entry_id, status, at, by${hasType ? ", type" : ", 'status'"} FROM suivi_status_history;
+      DROP TABLE suivi_status_history;
+      ALTER TABLE suivi_status_history_new RENAME TO suivi_status_history;
+      COMMIT;
+    `);
+  }
+} catch (e) { console.error("[migration] suivi cascade:", e.message); }
+
 module.exports = db;
