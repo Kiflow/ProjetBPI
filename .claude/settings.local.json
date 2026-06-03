@@ -7,7 +7,10 @@
       "Bash(tar -tf design.html)",
       "Bash(tar -xf design.html \"bpi-project/project/option-a.jsx\" \"bpi-project/project/wiki-shell.jsx\" -O)",
       "Bash(tar -xf design2.tar \"bpi-project/project/suivi-shared.jsx\" -O)",
-      "Bash(tar -xf design2.tar \"bpi-project/project/suivi-options.jsx\" -O)"
+      "Bash(tar -xf design2.tar \"bpi-project/project/suivi-options.jsx\" -O)",
+      "Bash(tar -xf design3.tar \"bpi-project/chats/chat1.md\" -O)",
+      "Bash(tar -xf design3.tar \"bpi-project/project/cd-main.jsx\" -O)",
+      "Bash(npm install *)"
     ]
   }
 }

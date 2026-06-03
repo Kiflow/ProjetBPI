@@ -119,49 +119,91 @@
         </button>
 
         <div v-if="isGroupOpen(group.key)" class="group-body">
-          <div v-if="!group.items.length" class="empty-group">
-            {{ dragId ? 'Déposez le wiki ici' : 'Aucun wiki — glissez-déposez ici.' }}
+          <!-- Wiki list (left 2/3) -->
+          <div class="wiki-list-panel">
+            <div v-if="!group.items.length" class="empty-group">
+              {{ dragId ? 'Déposez le wiki ici' : 'Aucun wiki — glissez-déposez ici.' }}
+            </div>
+            <div
+              v-for="(wiki, i) in group.items" :key="wiki.id"
+              class="wiki-row"
+              :class="{ 'wiki-row--dragging': dragId === wiki.id, 'wiki-row--first': i === 0 }"
+              draggable="true"
+              @dragstart="handleDragStart($event, wiki.id)"
+              @dragend="dragId = null; dropOverGroup = null"
+              @click.stop
+            >
+              <div class="drag-handle">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2Zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8Zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14Zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6Zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8Zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14Z"/></svg>
+              </div>
+              <img v-if="getFaviconUrl(wiki.url) && !failedFavicons.has(wiki.url)" class="wiki-favicon" :src="getFaviconUrl(wiki.url)" loading="lazy" @error="markFaviconFailed(wiki.url)" />
+              <span v-else class="wiki-favicon-letter" :style="{ background: letterColor(wiki.name) }">{{ (wiki.name || '?')[0].toUpperCase() }}</span>
+              <div class="wiki-info">
+                <span class="wiki-name">{{ wiki.name }}</span>
+                <span class="wiki-url">{{ wiki.url }}</span>
+              </div>
+              <a class="btn-open" :href="wiki.url" target="_blank" rel="noreferrer" @click.stop>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.25 5.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 1 1.5 0v4A2.25 2.25 0 0 1 12.75 17h-8.5A2.25 2.25 0 0 1 2 14.75v-8.5A2.25 2.25 0 0 1 4.25 4h5a.75.75 0 0 1 0 1.5h-5Zm6.75-3a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0V4.06l-6.22 6.22a.75.75 0 0 1-1.06-1.06L14.44 3H11a.75.75 0 0 1-.75-.75Z" clip-rule="evenodd"/></svg>
+                Ouvrir
+              </a>
+              <div class="wiki-actions" @click.stop>
+                <button type="button" class="action-dots" @click.stop="toggleActionMenu(wiki.id)" aria-label="Actions">
+                  <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM8.5 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM15.5 8.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>
+                </button>
+                <div v-if="actionMenuId === wiki.id" class="action-menu" @click.stop>
+                  <button type="button" class="action-item" @click="openEditWiki(wiki); closeActionMenu()">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z"/></svg>
+                    Modifier
+                  </button>
+                  <button type="button" class="action-item" @click="copyLink(wiki.url); closeActionMenu()">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h3.879a1.5 1.5 0 0 1 1.06.44l3.122 3.12A1.5 1.5 0 0 1 17 6.622V12.5a1.5 1.5 0 0 1-1.5 1.5h-1v-3.379a3 3 0 0 0-.879-2.121L10.5 5.379A3 3 0 0 0 8.379 4.5H7v-1ZM4.5 6A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h7a1.5 1.5 0 0 0 1.5-1.5v-5.879a1.5 1.5 0 0 0-.44-1.06L9.44 6.439A1.5 1.5 0 0 0 8.378 6H4.5Z"/></svg>
+                    Copier le lien
+                  </button>
+                  <div class="action-divider"></div>
+                  <button type="button" class="action-item action-item-danger" @click="removeWiki(wiki.id); closeActionMenu()">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clip-rule="evenodd"/></svg>
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
+          <!-- Docs panel (right 1/3) -->
           <div
-            v-for="(wiki, i) in group.items" :key="wiki.id"
-            class="wiki-row"
-            :class="{ 'wiki-row--dragging': dragId === wiki.id, 'wiki-row--first': i === 0 }"
-            draggable="true"
-            @dragstart="handleDragStart($event, wiki.id)"
-            @dragend="dragId = null; dropOverGroup = null"
-            @click.stop
+            v-if="group.id !== null"
+            class="docs-panel"
+            :class="{ 'docs-panel--over': docDropOver === group.id }"
+            @dragover.prevent.stop="onDocDragOver($event, group.id)"
+            @dragleave="onDocDragLeave($event, group.id)"
+            @drop.prevent.stop="onDocDrop($event, group.id)"
           >
-            <div class="drag-handle">
-              <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2Zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8Zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14Zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6Zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8Zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14Z"/></svg>
-            </div>
-            <img v-if="getFaviconUrl(wiki.url) && !failedFavicons.has(wiki.url)" class="wiki-favicon" :src="getFaviconUrl(wiki.url)" loading="lazy" @error="markFaviconFailed(wiki.url)" />
-            <span v-else class="wiki-favicon-letter" :style="{ background: letterColor(wiki.name) }">{{ (wiki.name || '?')[0].toUpperCase() }}</span>
-            <div class="wiki-info">
-              <span class="wiki-name">{{ wiki.name }}</span>
-              <span class="wiki-url">{{ wiki.url }}</span>
-            </div>
-            <a class="btn-open" :href="wiki.url" target="_blank" rel="noreferrer" @click.stop>
-              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.25 5.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 1 1.5 0v4A2.25 2.25 0 0 1 12.75 17h-8.5A2.25 2.25 0 0 1 2 14.75v-8.5A2.25 2.25 0 0 1 4.25 4h5a.75.75 0 0 1 0 1.5h-5Zm6.75-3a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0V4.06l-6.22 6.22a.75.75 0 0 1-1.06-1.06L14.44 3H11a.75.75 0 0 1-.75-.75Z" clip-rule="evenodd"/></svg>
-              Ouvrir
-            </a>
-            <div class="wiki-actions" @click.stop>
-              <button type="button" class="action-dots" @click.stop="toggleActionMenu(wiki.id)" aria-label="Actions">
-                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM8.5 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM15.5 8.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>
+            <div class="docs-panel-header">
+              <span class="docs-panel-title">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path fill-rule="evenodd" d="M15.621 4.379a3 3 0 0 0-4.242 0l-7 7a3 3 0 0 0 4.241 4.243h.001l.497-.5a.75.75 0 0 1 1.064 1.057l-.498.501-.002.002a4.5 4.5 0 0 1-6.364-6.364l7-7a4.5 4.5 0 0 1 6.368 6.36l-3.455 3.553A2.625 2.625 0 1 1 9.52 9.52l3.45-3.451a.75.75 0 1 1 1.061 1.06l-3.45 3.451a1.125 1.125 0 0 0 1.587 1.595l3.454-3.553a3 3 0 0 0 0-4.242Z" clip-rule="evenodd"/></svg>
+                Fichiers
+              </span>
+              <button type="button" class="docs-add-btn" @click="triggerFileUpload(group.id)">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"/></svg>
+                Ajouter
               </button>
-              <div v-if="actionMenuId === wiki.id" class="action-menu" @click.stop>
-                <button type="button" class="action-item" @click="openEditWiki(wiki); closeActionMenu()">
-                  <svg viewBox="0 0 20 20" fill="currentColor"><path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z"/></svg>
-                  Modifier
-                </button>
-                <button type="button" class="action-item" @click="copyLink(wiki.url); closeActionMenu()">
-                  <svg viewBox="0 0 20 20" fill="currentColor"><path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h3.879a1.5 1.5 0 0 1 1.06.44l3.122 3.12A1.5 1.5 0 0 1 17 6.622V12.5a1.5 1.5 0 0 1-1.5 1.5h-1v-3.379a3 3 0 0 0-.879-2.121L10.5 5.379A3 3 0 0 0 8.379 4.5H7v-1ZM4.5 6A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h7a1.5 1.5 0 0 0 1.5-1.5v-5.879a1.5 1.5 0 0 0-.44-1.06L9.44 6.439A1.5 1.5 0 0 0 8.378 6H4.5Z"/></svg>
-                  Copier le lien
-                </button>
-                <div class="action-divider"></div>
-                <button type="button" class="action-item action-item-danger" @click="removeWiki(wiki.id); closeActionMenu()">
-                  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clip-rule="evenodd"/></svg>
-                  Supprimer
-                </button>
+            </div>
+            <div v-if="!groupDocs[group.id]?.length" class="docs-empty-zone">
+              <svg viewBox="0 0 20 20" fill="none" width="28" height="28"><path d="M3 16.5v-9A1.5 1.5 0 0 1 4.5 6H8l2 2h5.5A1.5 1.5 0 0 1 17 9.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 16.5Z" stroke="#cbd5e1" stroke-width="1.5"/></svg>
+              <span>Glissez-déposez un fichier</span>
+            </div>
+            <div v-else class="docs-file-list">
+              <div v-for="doc in groupDocs[group.id]" :key="doc.name" class="doc-item">
+                <svg class="doc-file-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M3 3.5A1.5 1.5 0 0 1 4.5 2h6.879a1.5 1.5 0 0 1 1.06.44l4.122 4.12A1.5 1.5 0 0 1 17 7.622V16.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 16.5v-13Z"/></svg>
+                <span class="doc-name" :title="doc.name">{{ doc.name }}</span>
+                <span class="doc-size">{{ formatSize(doc.size) }}</span>
+                <div class="doc-actions">
+                  <button class="doc-action-btn" @click="downloadDoc(group.id, doc.name)" title="Télécharger">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.614L6.295 8.235a.75.75 0 1 0-1.09 1.03l4.25 4.5a.75.75 0 0 0 1.09 0l4.25-4.5a.75.75 0 0 0-1.09-1.03l-2.955 3.129V2.75Z"/><path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z"/></svg>
+                  </button>
+                  <button class="doc-action-btn doc-action-danger" @click="deleteDoc(group.id, doc.name)" title="Supprimer">
+                    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clip-rule="evenodd"/></svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -270,6 +312,9 @@
       </div>
     </div>
 
+    <!-- Hidden file input for docs upload -->
+    <input ref="fileInputRef" type="file" style="display:none" @change="onFileSelected" />
+
     <!-- TOAST -->
     <Transition name="toast">
       <div v-if="toast" class="toast" :class="toast.kind === 'warn' ? 'toast--warn' : 'toast--ok'">
@@ -311,6 +356,12 @@ const shortcutForm = ref({ title: "", url: "" });
 
 const toast = ref(null);
 let toastTimer = null;
+
+// ── Docs ──────────────────────────────────────────────────────────────────
+const groupDocs         = ref({});
+const docDropOver       = ref(null);
+const activeFileGroupId = ref(null);
+const fileInputRef      = ref(null);
 
 // ── Toast ──────────────────────────────────────────────────────────────────
 const showToast = (msg, kind = "ok") => {
@@ -396,6 +447,8 @@ const loadAll = async () => {
     // open all groups after load
     groups.value.forEach(g => openGroups.value.add(g.id));
     openGroups.value.add("ungrouped");
+    // load docs for all groups
+    groups.value.forEach(g => loadGroupDocs(g.id));
   } catch {
     groups.value = []; wikis.value = []; shortcuts.value = [];
   }
@@ -504,6 +557,86 @@ const removeShortcut = async (id) => {
   catch {}
 };
 
+// ── Docs CRUD ──────────────────────────────────────────────────────────────
+const loadGroupDocs = async (groupId) => {
+  if (!groupId) return;
+  try {
+    const res = await api.get(`/wiki/groups/${groupId}/docs`);
+    groupDocs.value = { ...groupDocs.value, [groupId]: res.data };
+  } catch { groupDocs.value = { ...groupDocs.value, [groupId]: [] }; }
+};
+
+const triggerFileUpload = (groupId) => {
+  activeFileGroupId.value = groupId;
+  fileInputRef.value?.click();
+};
+
+const onFileSelected = async (e) => {
+  const file = e.target.files[0];
+  if (!file || !activeFileGroupId.value) return;
+  e.target.value = "";
+  await uploadFileToGroup(activeFileGroupId.value, file);
+};
+
+const uploadFileToGroup = async (groupId, file) => {
+  if (file.size > 20 * 1024 * 1024) {
+    showToast("Fichier trop volumineux (max 20 Mo)", "warn");
+    return;
+  }
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const res = await api.post(`/wiki/groups/${groupId}/docs`, fd, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
+    groupDocs.value = { ...groupDocs.value, [groupId]: [res.data, ...(groupDocs.value[groupId] || [])] };
+    showToast(`« ${res.data.name} » ajouté`);
+  } catch (err) {
+    showToast(err.response?.data?.message || "Erreur lors de l'upload.", "warn");
+  }
+};
+
+const downloadDoc = async (groupId, filename) => {
+  try {
+    const res = await api.get(`/wiki/groups/${groupId}/docs/${encodeURIComponent(filename)}`, { responseType: "blob" });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch { showToast("Erreur lors du téléchargement", "warn"); }
+};
+
+const deleteDoc = async (groupId, filename) => {
+  if (!confirm(`Supprimer « ${filename} » ?`)) return;
+  try {
+    await api.delete(`/wiki/groups/${groupId}/docs/${encodeURIComponent(filename)}`);
+    groupDocs.value = { ...groupDocs.value, [groupId]: (groupDocs.value[groupId] || []).filter(f => f.name !== filename) };
+    showToast("Document supprimé", "warn");
+  } catch { showToast("Erreur lors de la suppression", "warn"); }
+};
+
+const formatSize = (bytes) => {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+};
+
+const onDocDragOver = (event, groupId) => {
+  if (event.dataTransfer.types.includes("Files")) docDropOver.value = groupId;
+};
+const onDocDragLeave = (event, groupId) => {
+  if (!event.currentTarget.contains(event.relatedTarget)) {
+    if (docDropOver.value === groupId) docDropOver.value = null;
+  }
+};
+const onDocDrop = (event, groupId) => {
+  docDropOver.value = null;
+  if (!event.dataTransfer.files.length) return;
+  uploadFileToGroup(groupId, event.dataTransfer.files[0]);
+};
+
 // ── Drag & drop ────────────────────────────────────────────────────────────
 const handleDragStart = (event, wikiId) => {
   dragId.value = wikiId;
@@ -530,7 +663,13 @@ const handleDrop = async (event, groupId) => {
 const isGroupOpen = (key) => openGroups.value.has(key);
 const toggleGroup = (key) => {
   const next = new Set(openGroups.value);
-  next.has(key) ? next.delete(key) : next.add(key);
+  if (next.has(key)) {
+    next.delete(key);
+  } else {
+    next.add(key);
+    const group = groupedWikis.value.find(g => g.key === key);
+    if (group?.id && !groupDocs.value[group.id]) loadGroupDocs(group.id);
+  }
   openGroups.value = next;
 };
 
@@ -726,8 +865,74 @@ const copyLink = (url) => {
 .group-del:hover { color: #dc2626; background: #fee2e2; }
 .group-del svg { width: 14px; height: 14px; }
 
-.group-body { border-top: 1px solid #e2e8f0; }
+.group-body { border-top: 1px solid #e2e8f0; display: flex; }
 .empty-group { padding: 16px 20px; font-size: 12px; color: #94a3b8; text-align: center; }
+
+/* ── WIKI LIST PANEL ────────── */
+.wiki-list-panel { flex: 2; min-width: 0; border-right: 1px solid #e2e8f0; }
+
+/* ── DOCS PANEL ─────────────── */
+.docs-panel {
+  flex: 1; min-width: 220px; max-width: 320px;
+  display: flex; flex-direction: column;
+  background: #f8fafc; border-radius: 0 0 10px 0;
+  transition: background 0.15s;
+}
+.docs-panel--over { background: #eff6ff; }
+
+.docs-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
+}
+.docs-panel-title {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; color: #64748b;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.docs-panel-title svg { color: #94a3b8; }
+
+.docs-add-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px; font-size: 11px; font-weight: 600;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;
+  color: #475569; cursor: pointer; font-family: inherit;
+  transition: background 0.12s, border-color 0.12s;
+}
+.docs-add-btn:hover { background: #f1f5f9; border-color: #cbd5e0; }
+.docs-add-btn svg { width: 11px; height: 11px; }
+
+.docs-empty-zone {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 20px 12px; color: #94a3b8; font-size: 11px; text-align: center;
+  pointer-events: none;
+}
+
+.docs-file-list { display: flex; flex-direction: column; overflow-y: auto; flex: 1; }
+
+.doc-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-bottom: 1px solid #f1f5f9;
+  transition: background 0.1s;
+}
+.doc-item:last-child { border-bottom: none; }
+.doc-item:hover { background: #f1f5f9; }
+
+.doc-file-icon { width: 13px; height: 13px; color: #94a3b8; flex-shrink: 0; }
+.doc-name {
+  flex: 1; font-size: 11.5px; color: #334155; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.doc-size { font-size: 10px; color: #94a3b8; white-space: nowrap; flex-shrink: 0; }
+
+.doc-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.doc-action-btn {
+  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; border-radius: 5px;
+  cursor: pointer; color: #94a3b8; transition: background 0.1s, color 0.1s;
+}
+.doc-action-btn:hover { background: #e2e8f0; color: #475569; }
+.doc-action-btn svg { width: 13px; height: 13px; }
+.doc-action-danger:hover { background: #fee2e2; color: #dc2626; }
 
 /* ── WIKI ROWS ──────────────── */
 .wiki-row {
